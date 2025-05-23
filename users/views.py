@@ -91,7 +91,7 @@ def register(request):
             return redirect('core:index')
     else:
         form = CustomUserCreationForm()
-    return render(request, 'users/register.html', {'form': form})
+    return render(request, 'users/signup.html', {'form': form})
 
 @login_required
 def profile(request):
