@@ -5,6 +5,13 @@ set -e
 
 echo "🚀 YouTube Downloader 배포 시작..."
 
+# 전체 빌드 옵션 체크 (deploy.sh --full-build 로 실행 시)
+FULL_BUILD=false
+if [[ "$1" == "--full-build" ]]; then
+    FULL_BUILD=true
+    echo "🔨 전체 빌드 모드 (캐시 무시)"
+fi
+
 # 현재 사용자의 UID/GID 설정
 USER_ID=$(id -u)
 GROUP_ID=$(id -g)
@@ -53,7 +60,11 @@ fi
 
 # 6. Docker 빌드 및 실행
 echo "🐳 Docker 컨테이너 빌드 중..."
-docker-compose build --no-cache
+if [[ "$FULL_BUILD" == "true" ]]; then
+    docker-compose build --no-cache
+else
+    docker-compose build
+fi
 
 echo "🚀 데이터베이스 컨테이너 시작 중..."
 docker-compose up -d db redis
