@@ -37,7 +37,7 @@ class Job(models.Model):
         ('audio', '오디오만'),
     )
     
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    # id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='jobs')
     url = models.URLField(max_length=2000)
     src_url = models.URLField(max_length=2000, blank=True, null=True)  # links.html용 추가 필드

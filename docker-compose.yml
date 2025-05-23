@@ -5,19 +5,23 @@ services:
     environment:
       POSTGRES_DB: superduo_youtube
       POSTGRES_USER: superduo
-      POSTGRES_PASSWORD: Tbvjebdh12!@
+      POSTGRES_PASSWORD: superduo123
     volumes:
-      - ./data/postgres:/var/lib/postgresql/data  # 상대경로로 변경
+      - ./data/postgres:/var/lib/postgresql/data
     ports:
       - '5432:5432'
     restart: unless-stopped
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U superduo']
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   # Redis (Celery 브로커)
-  superduo_redis:
+  redis:
     image: redis:7-alpine
     volumes:
-      - ./data/redis:/data  # Redis 데이터도 프로젝트 내 저장
-    # ports 제거 (내부 통신만)
+      - ./data/redis:/data
     restart: unless-stopped
 
   # Django 웹 애플리케이션
@@ -28,20 +32,26 @@ services:
     environment:
       - DEBUG=False
       - SECRET_KEY=ABE194DEC1A343D7FB0CDB05600ACCC57CFA4BEB64DCDDA3A53DDE2562EDB9B3
-      - DATABASE_URL=postgres://superduo:Tbvjebdh12!@db:5432/superduo_youtube
-      - REDIS_URL=redis://superduo_redis:6379/0
+      - DATABASE_URL=postgres://superduo:superduo123@db:5432/superduo_youtube
+      - REDIS_URL=redis://redis:6379/0
     volumes:
-      - ./data/media:/app/media           # 상대경로로 변경
-      - ./data/static:/app/staticfiles    # 상대경로로 변경
-      - ./data/logs:/app/logs            # 기존과 동일
+      - ./data/media:/app/media
+      - ./data/static:/app/staticfiles
+      - ./logs:/app/logs
     depends_on:
-      - db
-      - superduo_redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
     restart: unless-stopped
     command: >
-      sh -c "python manage.py migrate &&
-             python manage.py collectstatic --noinput &&
-             gunicorn --config gunicorn.conf.py config.wsgi:application"
+      sh -c "
+        echo 'Waiting for database...' &&
+        sleep 15 &&
+        python manage.py migrate &&
+        python manage.py collectstatic --noinput &&
+        gunicorn --config gunicorn.conf.py config.wsgi:application
+      "
 
   # Celery 워커
   celery:
@@ -49,13 +59,15 @@ services:
     environment:
       - DEBUG=False
       - SECRET_KEY=ABE194DEC1A343D7FB0CDB05600ACCC57CFA4BEB64DCDDA3A53DDE2562EDB9B3
-      - DATABASE_URL=postgres://superduo:Tbvjebdh12!@db:5432/superduo_youtube
-      - REDIS_URL=redis://superduo_redis:6379/0
+      - DATABASE_URL=postgres://superduo:superduo123@db:5432/superduo_youtube
+      - REDIS_URL=redis://redis:6379/0
     volumes:
-      - ./data/media:/app/media          # 상대경로로 변경
-      - ./data/logs:/app/logs           # 기존과 동일
+      - ./data/media:/app/media
+      - ./logs:/app/logs
     depends_on:
-      - db
-      - superduo_redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
     restart: unless-stopped
     command: celery -A config worker --loglevel=info --concurrency=4
