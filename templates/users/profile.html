@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% load widget_tweaks %}
+
+{% block title %}내 프로필{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-6 offset-md-3">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h3 class="mb-0">내 프로필</h3>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4 text-center mb-3">
+                        <div class="avatar-wrapper">
+                            <img src="https://ui-avatars.com/api/?name={{ user.username }}&background=random&size=128" 
+                                 alt="{{ user.username }}" class="rounded-circle img-fluid">
+                        </div>
+                    </div>
+                    <div class="col-md-8">
+                        <h4>{{ user.username }}</h4>
+                        <p>
+                            <i class="fas fa-envelope me-2"></i> {{ user.email|default:"이메일 정보 없음" }}
+                        </p>
+                        <p>
+                            <i class="fas fa-user me-2"></i> {{ user.get_full_name|default:"이름 정보 없음" }}
+                        </p>
+                        {% if user.date_joined %}
+                        <p>
+                            <i class="fas fa-calendar-alt me-2"></i> 가입일: {{ user.date_joined|date:"Y년 m월 d일" }}
+                        </p>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <hr>
+                
+                <h5>계정 정보</h5>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label text-muted">아이디</label>
+                            <div class="form-control bg-light">{{ user.username }}</div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label text-muted">이메일</label>
+                            <div class="form-control bg-light">{{ user.email|default:"설정되지 않음" }}</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label text-muted">이름</label>
+                            <div class="form-control bg-light">{{ user.first_name|default:"설정되지 않음" }}</div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label text-muted">성</label>
+                            <div class="form-control bg-light">{{ user.last_name|default:"설정되지 않음" }}</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-12">
+                        <div class="mb-3">
+                            <label class="form-label text-muted">자기소개</label>
+                            <div class="form-control bg-light" style="min-height: 80px;">{{ user.bio|default:"자기소개가 없습니다."|linebreaks }}</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="d-grid gap-2">
+                    <a href="{% url 'downloads:download_list' %}" class="btn btn-outline-primary">
+                        <i class="fas fa-download me-2"></i> 내 다운로드 목록
+                    </a>
+                    <a href="{% url 'users:profile_update' %}" class="btn btn-primary">
+                        <i class="fas fa-edit me-2"></i> 프로필 수정
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

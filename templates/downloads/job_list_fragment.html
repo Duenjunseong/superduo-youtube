@@ -1,0 +1,105 @@
+{% if jobs %}
+    {% for job in jobs %}
+    <div class="card job-card" data-job-id="{{ job.id }}">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-start">
+                <div class="flex-grow-1">
+                    {% if job.status == 'pending' or job.status == 'queued' %}
+                    <div class="form-check">
+                        <input class="form-check-input job-checkbox" type="checkbox" value="{{ job.id }}" id="job-{{ status }}-{{ job.id }}">
+                        <label class="form-check-label h5" for="job-{{ status }}-{{ job.id }}">
+                            {% if job.title %}
+                                {{ job.title|truncatechars:50 }}
+                            {% else %}
+                                {{ job.src_url|truncatechars:50 }}
+                            {% endif %}
+                        </label>
+                    </div>
+                    {% else %}
+                    <h5 class="card-title">
+                        {% if job.title %}
+                            {{ job.title|truncatechars:50 }}
+                        {% else %}
+                            {{ job.src_url|truncatechars:50 }}
+                        {% endif %}
+                    </h5>
+                    {% endif %}
+                    <p class="card-text">
+                        <small class="text-muted">
+                            <span class="me-2">
+                                <i class="fas fa-link"></i> {{ job.src_url|truncatechars:30 }}
+                            </span>
+                            <span class="me-2">
+                                <i class="fas fa-calendar-alt"></i> {{ job.created_at|date:"Y-m-d H:i" }}
+                            </span>
+                            {% if job.finished_at %}
+                            <span class="me-2">
+                                {% if job.status == 'done' %}
+                                <i class="fas fa-check-circle"></i>
+                                {% elif job.status == 'cancelled' %}
+                                <i class="fas fa-times-circle"></i>
+                                {% endif %}
+                                {{ job.finished_at|date:"Y-m-d H:i" }}
+                            </span>
+                            {% endif %}
+                            <span class="me-2">
+                                <i class="fas fa-film"></i> {{ job.get_quality_display }}
+                            </span>
+                            <span>
+                                {% if job.status == 'queued' or job.status == 'pending' %}
+                                <span class="badge bg-info">대기 중</span>
+                                {% elif job.status == 'running' or job.status == 'processing' %}
+                                <span class="badge bg-primary">진행 중</span>
+                                {% elif job.status == 'done' or job.status == 'completed' %}
+                                <span class="badge bg-success">완료</span>
+                                {% elif job.status == 'cancelled' or job.status == 'failed' %}
+                                <span class="badge bg-danger">취소</span>
+                                {% endif %}
+                            </span>
+                        </small>
+                    </p>
+                    {% if job.error_msg or job.error_message %}
+                    <p class="text-danger"><small>{{ job.error_msg|default:job.error_message }}</small></p>
+                    {% endif %}
+                </div>
+                <div>
+                    {% if job.status == 'queued' or job.status == 'pending' %}
+                    <button class="btn btn-sm btn-danger btn-cancel" data-job-id="{{ job.id }}">취소</button>
+                    {% elif job.status == 'done' or job.status == 'completed' %}
+                        {% for file in job.files.all %}
+                        <a href="{% url 'downloads:download_file' file.id %}" class="btn btn-sm btn-success">
+                            <i class="fas fa-download"></i> 다운로드
+                        </a>
+                        {% endfor %}
+                    {% endif %}
+                </div>
+            </div>
+            {% if job.status == 'running' or job.status == 'processing' %}
+            <div class="progress mt-2">
+                <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                     role="progressbar" 
+                     style="width: {{ job.progress }}%;" 
+                     aria-valuenow="{{ job.progress }}" 
+                     aria-valuemin="0" 
+                     aria-valuemax="100">
+                    {{ job.progress|floatformat:1 }}%
+                </div>
+            </div>
+            {% endif %}
+            <div class="memo-container">
+                <div class="input-group">
+                    <input type="text" class="form-control form-control-sm memo-input" 
+                           placeholder="메모를 입력하세요" 
+                           data-job-id="{{ job.id }}" 
+                           value="{{ job.memo|default:'' }}">
+                    <button class="btn btn-outline-secondary btn-sm save-memo" type="button" data-job-id="{{ job.id }}">저장</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+{% else %}
+    <div class="alert alert-info">
+        <i class="fas fa-info-circle me-2"></i> 작업이 없습니다.
+    </div>
+{% endif %} 

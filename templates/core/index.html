@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block title %}YouTube 다운로더 - 홈{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8 offset-md-2 text-center">
+        <h1 class="display-4 mb-4">YouTube 동영상 다운로드</h1>
+        <p class="lead mb-5">
+            YouTube 동영상을 손쉽게 다운로드하세요.<br>
+            고품질 비디오와 오디오를 무료로 다운로드할 수 있습니다.
+        </p>
+        <div class="d-grid gap-2 d-md-block">
+            {% if user.is_authenticated %}
+            <a href="{% url 'downloads:links' %}" class="btn btn-primary btn-lg">다운로드 시작</a>
+            {% else %}
+            <a href="{% url 'users:login' %}" class="btn btn-primary btn-lg me-2">로그인</a>
+            <a href="{% url 'users:signup' %}" class="btn btn-outline-primary btn-lg">회원가입</a>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<div class="row mt-5">
+    <div class="col-md-4">
+        <div class="card mb-4">
+            <div class="card-body text-center">
+                <i class="fas fa-download fa-3x mb-3 text-primary"></i>
+                <h5 class="card-title">고품질 다운로드</h5>
+                <p class="card-text">1080p, 720p, 480p 등 다양한 품질로 동영상을 다운로드하세요.</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card mb-4">
+            <div class="card-body text-center">
+                <i class="fas fa-music fa-3x mb-3 text-primary"></i>
+                <h5 class="card-title">오디오 추출</h5>
+                <p class="card-text">동영상에서 오디오만 추출하여 MP3 파일로 저장할 수 있습니다.</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card mb-4">
+            <div class="card-body text-center">
+                <i class="fas fa-bolt fa-3x mb-3 text-primary"></i>
+                <h5 class="card-title">빠른 처리</h5>
+                <p class="card-text">여러 개의 동영상을 한 번에 빠르게 다운로드할 수 있습니다.</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

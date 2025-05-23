@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% load widget_tweaks %}
+
+{% block title %}내 다운로드 목록{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h3 class="mb-0">내 다운로드 목록</h3>
+            </div>
+            <div class="card-body">
+                {% if jobs %}
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover">
+                        <thead>
+                            <tr>
+                                <th>URL</th>
+                                <th>상태</th>
+                                <th>생성일</th>
+                                <th>파일</th>
+                                <th>작업</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for job in jobs %}
+                            <tr>
+                                <td>{{ job.url|truncatechars:50 }}</td>
+                                <td>
+                                    {% if job.status == 'pending' %}
+                                    <span class="badge bg-info">대기 중</span>
+                                    {% elif job.status == 'processing' %}
+                                    <span class="badge bg-primary">처리 중</span>
+                                    {% elif job.status == 'completed' %}
+                                    <span class="badge bg-success">완료</span>
+                                    {% elif job.status == 'failed' %}
+                                    <span class="badge bg-danger">실패</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ job.created_at|date:"Y-m-d H:i" }}</td>
+                                <td>
+                                    {% if job.files.all %}
+                                    <div class="btn-group">
+                                        <button type="button" class="btn btn-sm btn-outline-primary dropdown-toggle" data-bs-toggle="dropdown">
+                                            파일 ({{ job.files.count }})
+                                        </button>
+                                        <ul class="dropdown-menu">
+                                            {% for file in job.files.all %}
+                                            <li>
+                                                <a class="dropdown-item" href="{% url 'downloads:download_file' file_id=file.id %}">
+                                                    {{ file.filename }} ({{ file.file_size|filesizeformat }})
+                                                </a>
+                                            </li>
+                                            {% endfor %}
+                                        </ul>
+                                    </div>
+                                    {% else %}
+                                    <span class="text-muted">없음</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if job.status == 'pending' %}
+                                    <a href="{% url 'downloads:cancel_job' job_id=job.id %}" class="btn btn-sm btn-danger">
+                                        취소
+                                    </a>
+                                    {% endif %}
+                                    
+                                    {% if job.status == 'failed' %}
+                                    <span class="text-danger">{{ job.error_message }}</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i> 다운로드 작업이 없습니다.
+                </div>
+                <p class="text-center mt-3">
+                    <a href="{% url 'downloads:download_form' %}" class="btn btn-primary">
+                        <i class="fas fa-plus me-2"></i> 새 다운로드 시작하기
+                    </a>
+                </p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

@@ -1,0 +1,67 @@
+version: '3.8'
+
+services:
+  # PostgreSQL 데이터베이스
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: superduo_youtube
+      POSTGRES_USER: superduo
+      POSTGRES_PASSWORD: Tbvjebdh12!@
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - '5432:5432'
+    restart: unless-stopped
+
+  # Redis (Celery 브로커)
+  redis:
+    image: redis:7-alpine
+    ports:
+      - '6379:6379'
+    restart: unless-stopped
+
+  # Django 웹 애플리케이션 (포트 8000 → 8001로 변경)
+  web:
+    build: .
+    ports:
+      - '8001:8001'
+    environment:
+      - DEBUG=False
+      - SECRET_KEY=ABE194DEC1A343D7FB0CDB05600ACCC57CFA4BEB64DCDDA3A53DDE2562EDB9B3
+      - DATABASE_URL=postgres://superduo:Tbvjebdh12!@db:5432/superduo_youtube
+      - REDIS_URL=redis://redis:6379/0
+    volumes:
+      - media_files:/app/media
+      - static_files:/app/staticfiles
+      - ./logs:/app/logs
+    depends_on:
+      - db
+      - redis
+    restart: unless-stopped
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py collectstatic --noinput &&
+             gunicorn --config gunicorn.conf.py config.wsgi:application"
+
+  # Celery 워커
+  celery:
+    build: .
+    environment:
+      - DEBUG=False
+      - SECRET_KEY=ABE194DEC1A343D7FB0CDB05600ACCC57CFA4BEB64DCDDA3A53DDE2562EDB9B3
+      - DATABASE_URL=postgres://superduo:Tbvjebdh12!@db:5432/superduo_youtube
+      - REDIS_URL=redis://redis:6379/0
+    volumes:
+      - media_files:/app/media
+      - ./logs:/app/logs
+    depends_on:
+      - db
+      - redis
+    restart: unless-stopped
+    command: celery -A config worker --loglevel=info --concurrency=4
+
+volumes:
+  postgres_data:
+  media_files:
+  static_files:

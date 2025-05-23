@@ -1,0 +1,2148 @@
+{% extends "base.html" %}
+{% load widget_tweaks %}
+
+{% block title %}유튜브 링크 다운로드{% endblock %}
+
+{% block extra_css %}
+<style>
+
+    .job-card {
+        margin-bottom: 15px;
+        transition: all 0.3s ease;
+    }
+    .job-card:hover {
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+    .progress {
+        height: 10px;
+    }
+    .job-actions {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .memo-container {
+        margin-top: 10px;
+    }
+    
+    /* 메인 컨테이너 최소 높이 설정 */
+    .main-container {
+        min-height: calc(100vh - 200px); /* footer 높이와 여유 공간을 고려한 값 */
+        padding-bottom: 2rem;
+    }
+    
+    /* footer 스타일 */
+    footer {
+        margin-top: auto;
+        padding: 1rem 0;
+        background-color: #f8f9fa;
+        border-top: 1px solid #dee2e6;
+    }
+    /* Notion 스타일 파스텔 태그 */
+    .pastel-tag {
+        display: flex;
+        gap: 8px;
+        position: relative;
+        width: fit-content;
+        padding: 0.3em 60px 0.3em 1em;
+        border-radius: 999px;
+        font-size: 0.95em;
+        font-weight: 500;
+        margin: 0.15em 0.3em 0.15em 0;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+        border: none;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        vertical-align: middle;
+    }
+    
+    .pastel-tag:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+    }
+    
+    .available-job-tag, .clickable-tag {
+        position: relative;
+        width: fit-content;
+        padding: 0.3em 1em 0.3em 1em;
+        border-radius: 999px;
+        font-size: 0.95em;
+        font-weight: 500;
+        margin: 0.15em 0.3em 0.15em 0;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+        border: none;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        vertical-align: middle;
+    }
+    
+    .available-job-tag:hover, .clickable-tag:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+    }
+    
+    .pastel-tag .tag-name {
+    }
+    .pastel-blue { background: #e8f0ff; color: #1a365d; border: 1px solid #b3d9ff; }
+    .pastel-green { background: #e8f7f2; color: #2d5a3d; border: 1px solid #b3e5cc; }
+    .pastel-yellow { background: #fffbeb; color: #7c5d00; border: 1px solid #fed7aa; }
+    .pastel-pink { background: #fdf2f8; color: #be185d; border: 1px solid #fbb6ce; }
+    .pastel-purple { background: #f3e8ff; color: #6b21a8; border: 1px solid #d8b4fe; }
+    .pastel-orange { background: #fff7ed; color: #c2410c; border: 1px solid #fed7aa; }
+    .pastel-mint { background: #f0fdfa; color: #134e4a; border: 1px solid #5eead4; }
+    .pastel-gray { background: #f8fafc; color: #374151; border: 1px solid #d1d5db; }
+    
+    .tag-actions {
+        position: absolute;
+        right: 0.5em;
+        top: 50%;
+        display: flex;
+        align-items: center;
+        gap: 0.4em;
+        transform: translateY(-50%);
+    }
+    .tag-color-picker {
+        position: static;
+        margin-right: 0;
+        background: rgba(255,255,255,0.8);
+        border: 1px solid #bbb;
+        border-radius: 50%;
+        width: 1.4em;
+        height: 1.4em;
+        font-size: 0.75em;
+        color: #555;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        opacity: 0.8;
+        transition: all 0.2s;
+        cursor: pointer;
+        z-index: 2;
+    }
+    .tag-color-picker:hover {
+        background: #e2eafc;
+        color: #333;
+        opacity: 1;
+        transform: scale(1.1);
+    }
+    .tag-close-btn {
+        position: static;
+        background: rgba(255,255,255,0.8);
+        border: 1px solid #bbb;
+        border-radius: 50%;
+        width: 1.4em;
+        height: 1.4em;
+        font-size: 1em;
+        color: #555;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        opacity: 0.8;
+        transition: all 0.2s;
+        cursor: pointer;
+        z-index: 2;
+        line-height: 1;
+    }
+    .tag-close-btn:hover {
+        background: #ffbdbd;
+        color: #a00;
+        opacity: 1;
+        transform: scale(1.1);
+    }
+    /* 태그 입력/관리 UI 개선 */
+    #tag-form .input-group {
+        border-radius: 25px;
+        background: #f8f9fa;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+        padding: 0.3em 0.7em;
+        border: 1px solid #e9ecef;
+        transition: all 0.2s ease;
+    }
+    
+    #tag-form .input-group:focus-within {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+        border-color: #86b7fe;
+    }
+    
+    #new-tag.form-control {
+        border: none;
+        background: transparent;
+        border-radius: 25px;
+        font-size: 1em;
+        outline: none;
+        box-shadow: none;
+        color: #495057;
+    }
+    
+    #new-tag.form-control::placeholder {
+        color: #6c757d;
+        opacity: 0.7;
+    }
+    
+    #tag-form .btn {
+        border-radius: 20px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 4px rgba(102, 126, 234, 0.3);
+        padding: 0.45em 1.5em;
+        font-size: 1em;
+        letter-spacing: 0.02em;
+    }
+    
+    #tag-form .btn:hover {
+        background: linear-gradient(135deg, #5a67d8 0%, #6b46a1 100%);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(102, 126, 234, 0.4);
+    }
+    #tag-list {
+        margin-top: 0.5em;
+    }
+    
+    .color-options {
+        padding: 1.5rem;
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 0.8rem;
+    }
+    
+    .color-option {
+        width: 3rem;
+        height: 3rem;
+        border-radius: 50%;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        border: 2px solid transparent;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .color-option::before {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 0.8rem;
+        height: 0.8rem;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.8);
+        transform: translate(-50%, -50%) scale(0);
+        transition: transform 0.2s ease;
+    }
+    
+    .color-option:hover {
+        transform: scale(1.15);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    
+    .color-option:hover::before {
+        transform: translate(-50%, -50%) scale(1);
+    }
+    
+    .color-option.selected {
+        transform: scale(1.2);
+        box-shadow: 0 0 0 3px #fff, 0 0 0 5px #007bff;
+    }
+    
+    .color-option.selected::before {
+        transform: translate(-50%, -50%) scale(1);
+        background: #007bff;
+    }
+    
+    /* 각 색상 옵션에 실제 색상 적용 */
+    .color-option.pastel-blue { background: #e8f0ff; }
+    .color-option.pastel-green { background: #e8f7f2; }
+    .color-option.pastel-yellow { background: #fffbeb; }
+    .color-option.pastel-pink { background: #fdf2f8; }
+    .color-option.pastel-purple { background: #f3e8ff; }
+    .color-option.pastel-orange { background: #fff7ed; }
+    .color-option.pastel-mint { background: #f0fdfa; }
+    .color-option.pastel-gray { background: #f8fafc; }
+    
+    /* 작업의 태그 x 버튼 스타일 */
+    .job-tag {
+        position: relative;
+        padding-right: 1.8em !important;
+    }
+    
+    .job-tag-close-btn {
+        position: absolute;
+        right: 0.6em;
+        top: 50%;
+        transform: translateY(-50%);
+        background: rgba(255,255,255,0.8);
+        border: 1px solid #bbb;
+        border-radius: 50%;
+        width: 1.2em;
+        height: 1.2em;
+        font-size: 0.9em;
+        color: #555;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        opacity: 0.8;
+        transition: all 0.2s;
+        cursor: pointer;
+        z-index: 2;
+        line-height: 1;
+    }
+    
+    .job-tag-close-btn:hover {
+        background: #ffbdbd;
+        color: #a00;
+        opacity: 1;
+        transform: translateY(-50%) scale(1.1);
+    }
+    
+    /* 기존 CSS는 그대로 두고, 다음을 추가 */
+    
+    /* 필터링 관련 스타일 */
+    .filter-btn.active {
+        background-color: #0d6efd !important;
+        color: white !important;
+        border-color: #0d6efd !important;
+        box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+    }
+    
+    .filter-btn {
+        transition: all 0.2s ease;
+    }
+    
+    .filter-btn:hover {
+        background-color: #e9ecef;
+        border-color: #adb5bd;
+    }
+    
+    #tag-filter-area {
+        background-color: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 0.375rem;
+        padding: 0.75rem;
+        animation: slideDown 0.3s ease;
+    }
+    
+    @keyframes slideDown {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    .tag-filter-chip {
+        cursor: pointer;
+        user-select: none;
+        animation: fadeIn 0.2s ease;
+    }
+    
+    @keyframes fadeIn {
+        from { opacity: 0; transform: scale(0.8); }
+        to { opacity: 1; transform: scale(1); }
+    }
+    
+    .tag-filter-chip:hover {
+        opacity: 0.8;
+        transform: scale(1.05);
+    }
+    
+    .tag-filter-remove {
+        transition: all 0.2s ease;
+    }
+    
+    .tag-filter-remove:hover {
+        background-color: rgba(255, 0, 0, 0.2) !important;
+        border-radius: 50%;
+        color: #dc3545 !important;
+        transform: translateY(-50%) scale(1.2);
+    }
+    
+    #filter-status {
+        text-align: center;
+        animation: slideDown 0.3s ease;
+    }
+    
+    #filter-status .badge {
+        font-size: 0.9em;
+        padding: 0.5em 0.75em;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    /* 작업 카드의 태그를 클릭 가능하게 표시 */
+    .job-tag {
+        cursor: pointer;
+        transition: all 0.2s ease;
+        position: relative;
+    }
+    
+    .job-tag:hover {
+        transform: scale(1.05);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    }
+    
+    .job-tag::before {
+        content: "클릭하여 필터링";
+        position: absolute;
+        bottom: -25px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(0,0,0,0.8);
+        color: white;
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-size: 0.7em;
+        white-space: nowrap;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.2s ease;
+        z-index: 1000;
+    }
+    
+    .job-tag:hover::before {
+        opacity: 1;
+    }
+    
+    /* 필터링된 카드가 부드럽게 사라지도록 */
+    .job-card {
+        transition: opacity 0.3s ease, transform 0.3s ease;
+    }
+    
+    .job-card[style*="display: none"] {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+    
+    /* 결과 없음 메시지 스타일 */
+    #no-results-message {
+        margin: 2rem auto;
+        max-width: 400px;
+        animation: fadeIn 0.5s ease;
+    }
+    
+    /* 필터 버튼 그룹 스타일 개선 */
+    .btn-group .filter-btn {
+        border-radius: 0;
+    }
+    
+    .btn-group .filter-btn:first-child {
+        border-top-left-radius: 0.375rem;
+        border-bottom-left-radius: 0.375rem;
+    }
+    
+    .btn-group .filter-btn:last-child {
+        border-top-right-radius: 0.375rem;
+        border-bottom-right-radius: 0.375rem;
+    }
+    
+    /* 정렬 옵션 스타일 */
+    #sort-options {
+        border: 1px solid #dee2e6;
+        border-radius: 0.375rem;
+        transition: border-color 0.2s ease;
+    }
+    
+    #sort-options:focus {
+        border-color: #86b7fe;
+        box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="main-container">
+    <div class="row">
+        <!-- 좌측: 폼 영역 -->
+        <div class="col-md-4">
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">YouTube 링크 다운로드</h4>
+                </div>
+                <div class="card-body">
+                    <form id="download-form" method="post" action="{% url 'downloads:links' %}">
+                        {% csrf_token %}
+                        
+                        {% if form.non_field_errors %}
+                        <div class="alert alert-danger">
+                            {% for error in form.non_field_errors %}
+                            {{ error }}
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        
+                        <div class="mb-3">
+                            <label for="{{ form.urls.id_for_label }}" class="form-label">{{ form.urls.label }}</label>
+                            {{ form.urls|add_class:"form-control" }}
+                            {% if form.urls.errors %}
+                            <div class="text-danger">
+                                {% for error in form.urls.errors %}
+                                {{ error }}
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                            <div class="form-text">{{ form.urls.help_text }}</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="{{ form.quality.id_for_label }}" class="form-label">{{ form.quality.label }}</label>
+                            {{ form.quality|add_class:"form-select" }}
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">태그 선택</label>
+                            <div id="tag-selection-area" class="border rounded p-2" style="min-height: 60px; background: #f8f9fa;">
+                                <div class="d-flex flex-wrap gap-2" id="available-tags">
+                                    {% for tag in tags %}
+                                    <span class="pastel-tag {{ tag.color }} clickable-tag" data-tag-id="{{ tag.id }}" style="cursor: pointer; opacity: 0.6; transition: opacity 0.2s;">
+                                        {{ tag.name }}
+                                    </span>
+                                    {% endfor %}
+                                </div>
+                                <div class="mt-2">
+                                    <small class="text-muted">클릭하여 태그를 선택/해제하세요</small>
+                                </div>
+                            </div>
+                            <input type="hidden" name="selected_tags" id="selected-tags-input" value="">
+                        </div>
+                        
+                        <div class="d-grid">
+                            <button type="submit" id="submit-btn" class="btn btn-primary">
+                                <span id="loading-spinner" class="spinner-border spinner-border-sm me-2 d-none" role="status" aria-hidden="true"></span>
+                                다운로드 시작
+                            </button>
+                        </div>
+                        
+                        <div id="form-result" class="mt-3"></div>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- 태그 관리 섹션 -->
+            <div class="card mb-4">
+                <div class="card-header bg-info text-white">
+                    <h4 class="mb-0">태그 관리</h4>
+                </div>
+                <div class="card-body">
+                    <!-- 태그 생성 폼 -->
+                    <form id="tag-form" class="mb-3">
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="new-tag" placeholder="새 태그 입력">
+                            <button class="btn btn-primary" type="submit">추가</button>
+                        </div>
+                    </form>
+                    
+                    <!-- 태그 목록 -->
+                    <div id="tag-list" class="d-flex flex-wrap gap-2">
+                        {% for tag in tags %}
+                        <div class="tag-item" data-tag-id="{{ tag.id }}">
+                            <span class="pastel-tag {{ tag.color }}">
+                                <span class="tag-name" contenteditable="true">{{ tag.name }}</span>
+                                <span class="tag-actions">
+                                    <span class="tag-color-picker" title="색상 변경">
+                                        <i class="fas fa-palette"></i>
+                                    </span>
+                                    <span class="tag-close-btn" title="삭제">×</span>
+                                </span>
+                            </span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    
+                    <!-- 색상 선택 모달 -->
+                    <div class="modal fade" id="colorPickerModal" tabindex="-1">
+                        <div class="modal-dialog modal-sm">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">태그 색상 선택</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <div class="color-options d-flex flex-wrap gap-2">
+                                        <div class="color-option pastel-blue" data-color="pastel-blue"></div>
+                                        <div class="color-option pastel-green" data-color="pastel-green"></div>
+                                        <div class="color-option pastel-yellow" data-color="pastel-yellow"></div>
+                                        <div class="color-option pastel-pink" data-color="pastel-pink"></div>
+                                        <div class="color-option pastel-purple" data-color="pastel-purple"></div>
+                                        <div class="color-option pastel-orange" data-color="pastel-orange"></div>
+                                        <div class="color-option pastel-mint" data-color="pastel-mint"></div>
+                                        <div class="color-option pastel-gray" data-color="pastel-gray"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 우측: 작업 목록 영역 -->
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <ul class="nav nav-tabs card-header-tabs" id="jobTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="all-tab" data-bs-toggle="tab" data-bs-target="#all" type="button" role="tab" aria-selected="true">
+                                전체
+                                <span class="badge rounded-pill bg-secondary">{{ total_jobs_count }}</span>
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="active-tab" data-bs-toggle="tab" data-bs-target="#active" type="button" role="tab" aria-selected="false">
+                                진행 중 
+                                <span class="badge rounded-pill bg-primary">{{ active_jobs|length }}</span>
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="completed-tab" data-bs-toggle="tab" data-bs-target="#completed" type="button" role="tab" aria-selected="false">
+                                완료
+                                <span class="badge rounded-pill bg-success">{{ completed_jobs|length }}</span>
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="cancelled-tab" data-bs-toggle="tab" data-bs-target="#cancelled" type="button" role="tab" aria-selected="false">
+                                취소
+                                <span class="badge rounded-pill bg-danger">{{ cancelled_jobs|length }}</span>
+                            </button>
+                        </li>
+                    </ul>
+                </div>
+                
+                <div class="card-body tab-content">
+                    <!-- 전체 탭 -->
+                    <div class="tab-pane fade show active" id="all" role="tabpanel" aria-labelledby="all-tab">
+                        <div class="mb-3 d-flex justify-content-between align-items-center">
+                            <div class="d-flex align-items-center">
+                                <label for="sort-options" class="form-label me-2 mb-0"><small><strong>정렬:</strong></small></label>
+                                <select id="sort-options" class="form-select form-select-sm" style="width: auto;">
+                                    <option value="최신순" {% if request.GET.sort == '최신순' or not request.GET.sort %}selected{% endif %}>최신순</option>
+                                    <option value="오래된순" {% if request.GET.sort == '오래된순' %}selected{% endif %}>오래된순</option>
+                                    <option value="상태순_오름차순" {% if request.GET.sort == '상태순_오름차순' %}selected{% endif %}>상태순 (오름차순)</option>
+                                    <option value="상태순_내림차순" {% if request.GET.sort == '상태순_내림차순' %}selected{% endif %}>상태순 (내림차순)</option>
+                                    <option value="완료일순_내림차순" {% if request.GET.sort == '완료일순_내림차순' %}selected{% endif %}>완료일순 (내림차순)</option>
+                                    <option value="완료일순_오름차순" {% if request.GET.sort == '완료일순_오름차순' %}selected{% endif %}>완료일순 (오름차순)</option>
+                                </select>
+                            </div>
+                            
+                            <div class="d-flex align-items-center">
+                                <small class="text-muted me-2"><strong>상태 필터:</strong></small>
+                                <div class="btn-group btn-group-sm" role="group" aria-label="필터">
+                                    <button type="button" class="btn btn-outline-secondary filter-btn {% if 'queued' in request.GET.filters %}active{% endif %}" data-filter="queued" title="대기 중인 작업만 표시">대기 중</button>
+                                    <button type="button" class="btn btn-outline-secondary filter-btn {% if 'running' in request.GET.filters %}active{% endif %}" data-filter="running" title="진행 중인 작업만 표시">진행 중</button>
+                                    <button type="button" class="btn btn-outline-secondary filter-btn {% if 'done' in request.GET.filters %}active{% endif %}" data-filter="done" title="완료된 작업만 표시">완료</button>
+                                    <button type="button" class="btn btn-outline-secondary filter-btn {% if 'cancelled' in request.GET.filters %}active{% endif %}" data-filter="cancelled" title="취소된 작업만 표시">취소</button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 필터링 안내 메시지 -->
+                        <div class="alert alert-info alert-dismissible fade show" id="filter-help" style="font-size: 0.9em;">
+                            <i class="fas fa-info-circle me-2"></i>
+                            <strong>필터링 사용법:</strong>
+                            <ul class="mb-0 mt-1">
+                                <li>상태 버튼을 클릭하여 해당 상태의 작업만 표시할 수 있습니다.</li>
+                                <li>작업 카드의 태그를 클릭하면 해당 태그가 있는 작업만 표시됩니다.</li>
+                                <li>여러 필터를 동시에 적용할 수 있습니다.</li>
+                            </ul>
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                        
+                        {% if all_jobs %}
+                        <div class="job-actions mb-3">
+                            <div class="d-flex align-items-center">
+                                <div class="form-check me-2">
+                                    <input class="form-check-input" type="checkbox" id="select-all-all">
+                                    <label class="form-check-label" for="select-all-all">전체 선택</label>
+                                </div>
+                                <button id="cancel-selected-all" class="btn btn-sm btn-danger me-2" disabled>선택 취소</button>
+                                <button id="delete-selected-all" class="btn btn-sm btn-outline-danger" disabled>선택 삭제</button>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        <div id="all-jobs-container">
+                            {% if all_jobs %}
+                                {% for job in pagination %}
+                                <div class="card job-card" data-job-id="{{ job.id }}">
+                                    <div class="card-body">
+                                        <div class="d-flex justify-content-between align-items-start">
+                                            <div class="flex-grow-1">
+                                                <div class="form-check">
+                                                    <input class="form-check-input job-checkbox" type="checkbox" value="{{ job.id }}" id="job-all-{{ job.id }}">
+                                                    <label class="form-check-label h5" for="job-all-{{ job.id }}">
+                                                        {% if job.title %}
+                                                            {{ job.title|truncatechars:50 }}
+                                                        {% else %}
+                                                            {{ job.src_url|truncatechars:50 }}
+                                                        {% endif %}
+                                                    </label>
+                                                </div>
+                                                <p class="card-text">
+                                                    <small class="text-muted">
+                                                        <span class="me-2">
+                                                            <i class="fas fa-link"></i> {{ job.src_url|truncatechars:30 }}
+                                                        </span>
+                                                        <span class="me-2">
+                                                            <i class="fas fa-calendar-alt"></i> {{ job.created_at|date:"Y-m-d H:i" }}
+                                                        </span>
+                                                        {% if job.finished_at %}
+                                                        <span class="me-2">
+                                                            {% if job.status == 'done' %}
+                                                            <i class="fas fa-check-circle"></i>
+                                                            {% elif job.status == 'cancelled' %}
+                                                            <i class="fas fa-times-circle"></i>
+                                                            {% endif %}
+                                                            {{ job.finished_at|date:"Y-m-d H:i" }}
+                                                        </span>
+                                                        {% endif %}
+                                                        <span class="me-2">
+                                                            <i class="fas fa-film"></i> {{ job.get_quality_display }}
+                                                        </span>
+                                                        <span>
+                                                            {% if job.status == 'queued' or job.status == 'pending' %}
+                                                            <span class="badge bg-info">대기 중</span>
+                                                            {% elif job.status == 'running' or job.status == 'processing' %}
+                                                            <span class="badge bg-primary">진행 중</span>
+                                                            {% elif job.status == 'done' or job.status == 'completed' %}
+                                                            <span class="badge bg-success">완료</span>
+                                                            {% elif job.status == 'cancelled' or job.status == 'failed' %}
+                                                            <span class="badge bg-danger">취소</span>
+                                                            {% endif %}
+                                                        </span>
+                                                    </small>
+                                                </p>
+                                                {% if job.tags.all %}
+                                                <div class="job-tags-list mt-2">
+                                                    {% for tag in job.tags.all %}
+                                                    <span class="pastel-tag {{ tag.color }} job-tag" data-tag-id="{{ tag.id }}">
+                                                        {{ tag.name }}
+                                                        <span class="job-tag-close-btn" title="태그 제거">×</span>
+                                                    </span>
+                                                    {% endfor %}
+                                                </div>
+                                                {% endif %}
+                                                <div class="job-tag-controls mt-2">
+                                                    <button class="btn btn-sm btn-outline-primary add-tag-btn" data-job-id="{{ job.id }}" type="button">
+                                                        <i class="fas fa-tag"></i> 태그 추가
+                                                    </button>
+                                                    <div class="available-job-tags mt-2" style="display: none;">
+                                                        {% for tag in tags %}
+                                                        <span class="pastel-tag {{ tag.color }} available-job-tag" data-tag-id="{{ tag.id }}" data-job-id="{{ job.id }}" style="cursor: pointer; margin: 0.2em;">
+                                                            {{ tag.name }}
+                                                        </span>
+                                                        {% endfor %}
+                                                    </div>
+                                                </div>
+                                                {% if job.error_msg or job.error_message %}
+                                                <p class="text-danger"><small>{{ job.error_msg|default:job.error_message }}</small></p>
+                                                {% endif %}
+                                            </div>
+                                            
+                                            <div>
+                                                {% if job.status == 'queued' or job.status == 'pending' %}
+                                                <button class="btn btn-sm btn-danger btn-cancel" data-job-id="{{ job.id }}">취소</button>
+                                                {% elif job.status == 'done' or job.status == 'completed' %}
+                                                {% for file in job.files.all %}
+                                                <a href="{% url 'downloads:download_file' file.id %}" class="btn btn-sm btn-success">
+                                                    <i class="fas fa-download"></i> 다운로드
+                                                </a>
+                                                {% endfor %}
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                        
+                                        {% if job.status == 'running' or job.status == 'processing' %}
+                                        <div class="progress mt-2">
+                                            <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                                                 role="progressbar" 
+                                                 style="width: {{ job.progress }}%;" 
+                                                 aria-valuenow="{{ job.progress }}" 
+                                                 aria-valuemin="0" 
+                                                 aria-valuemax="100">
+                                                {{ job.progress|floatformat:1 }}%
+                                            </div>
+                                        </div>
+                                        {% endif %}
+                                        
+                                        <div class="memo-container">
+                                            <div class="input-group">
+                                                <input type="text" class="form-control form-control-sm memo-input" 
+                                                       placeholder="메모를 입력하세요" 
+                                                       data-job-id="{{ job.id }}" 
+                                                       value="{{ job.memo|default:'' }}">
+                                                <button class="btn btn-outline-secondary btn-sm save-memo" type="button" data-job-id="{{ job.id }}">저장</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            {% else %}
+                                <div class="alert alert-info">
+                                    <i class="fas fa-info-circle me-2"></i> 작업이 없습니다.
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        {% if pagination.has_other_pages %}
+                        <nav aria-label="Page navigation">
+                            <ul class="pagination justify-content-center mt-4">
+                                {% if pagination.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page=1" aria-label="First">
+                                        <span aria-hidden="true">&laquo;&laquo;</span>
+                                    </a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ pagination.previous_page_number }}" aria-label="Previous">
+                                        <span aria-hidden="true">&laquo;</span>
+                                    </a>
+                                </li>
+                                {% else %}
+                                <li class="page-item disabled">
+                                    <a class="page-link" href="#" tabindex="-1" aria-disabled="true">
+                                        <span aria-hidden="true">&laquo;&laquo;</span>
+                                    </a>
+                                </li>
+                                <li class="page-item disabled">
+                                    <a class="page-link" href="#" tabindex="-1" aria-disabled="true">
+                                        <span aria-hidden="true">&laquo;</span>
+                                    </a>
+                                </li>
+                                {% endif %}
+                                
+                                {% for i in pagination.paginator.page_range %}
+                                    {% if pagination.number == i %}
+                                    <li class="page-item active"><a class="page-link" href="#">{{ i }}</a></li>
+                                    {% elif i > pagination.number|add:'-3' and i < pagination.number|add:'3' %}
+                                    <li class="page-item"><a class="page-link" href="?page={{ i }}">{{ i }}</a></li>
+                                    {% endif %}
+                                {% endfor %}
+                                
+                                {% if pagination.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ pagination.next_page_number }}" aria-label="Next">
+                                        <span aria-hidden="true">&raquo;</span>
+                                    </a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ pagination.paginator.num_pages }}" aria-label="Last">
+                                        <span aria-hidden="true">&raquo;&raquo;</span>
+                                    </a>
+                                </li>
+                                {% else %}
+                                <li class="page-item disabled">
+                                    <a class="page-link" href="#" tabindex="-1" aria-disabled="true">
+                                        <span aria-hidden="true">&raquo;</span>
+                                    </a>
+                                </li>
+                                <li class="page-item disabled">
+                                    <a class="page-link" href="#" tabindex="-1" aria-disabled="true">
+                                        <span aria-hidden="true">&raquo;&raquo;</span>
+                                    </a>
+                                </li>
+                                {% endif %}
+                            </ul>
+                        </nav>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- 진행 중 탭 -->
+                    <div class="tab-pane fade" id="active" role="tabpanel" aria-labelledby="active-tab">
+                        {% if active_jobs %}
+                        <div class="job-actions mb-3">
+                            <div class="d-flex align-items-center">
+                                <div class="form-check me-2">
+                                    <input class="form-check-input" type="checkbox" id="select-all-active">
+                                    <label class="form-check-label" for="select-all-active">전체 선택</label>
+                                </div>
+                                <button id="cancel-selected-active" class="btn btn-sm btn-danger me-2" disabled>선택 취소</button>
+                                <button id="delete-selected-active" class="btn btn-sm btn-outline-danger" disabled>선택 삭제</button>
+                            </div>
+                        </div>
+                        
+                        <div id="active-jobs-container">
+                            {% for job in active_jobs %}
+                            <div class="card job-card" data-job-id="{{ job.id }}">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div class="flex-grow-1">
+                                            <div class="form-check">
+                                                <input class="form-check-input job-checkbox" type="checkbox" value="{{ job.id }}" id="job-active-{{ job.id }}">
+                                                <label class="form-check-label h5" for="job-active-{{ job.id }}">
+                                                    {% if job.title %}
+                                                        {{ job.title|truncatechars:50 }}
+                                                    {% else %}
+                                                        {{ job.src_url|truncatechars:50 }}
+                                                    {% endif %}
+                                                </label>
+                                            </div>
+                                            <p class="card-text">
+                                                <small class="text-muted">
+                                                    <span class="me-2">
+                                                        <i class="fas fa-link"></i> {{ job.src_url|truncatechars:30 }}
+                                                    </span>
+                                                    <span class="me-2">
+                                                        <i class="fas fa-calendar-alt"></i> {{ job.created_at|date:"Y-m-d H:i" }}
+                                                    </span>
+                                                    <span class="me-2">
+                                                        <i class="fas fa-film"></i> {{ job.get_quality_display }}
+                                                    </span>
+                                                    <span>
+                                                        {% if job.status == 'queued' or job.status == 'pending' %}
+                                                        <span class="badge bg-info">대기 중</span>
+                                                        {% elif job.status == 'running' or job.status == 'processing' %}
+                                                        <span class="badge bg-primary">진행 중</span>
+                                                        {% endif %}
+                                                    </span>
+                                                </small>
+                                            </p>
+                                        </div>
+                                        
+                                        <div>
+                                            {% if job.status == 'queued' or job.status == 'pending' %}
+                                            <button class="btn btn-sm btn-danger btn-cancel" data-job-id="{{ job.id }}">취소</button>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    
+                                    {% if job.status == 'running' or job.status == 'processing' %}
+                                    <div class="progress mt-2">
+                                        <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                                             role="progressbar" 
+                                             style="width: {{ job.progress }}%;" 
+                                             aria-valuenow="{{ job.progress }}" 
+                                             aria-valuemin="0" 
+                                             aria-valuemax="100">
+                                            {{ job.progress|floatformat:1 }}%
+                                        </div>
+                                    </div>
+                                    {% endif %}
+                                    
+                                    <div class="memo-container">
+                                        <div class="input-group">
+                                            <input type="text" class="form-control form-control-sm memo-input" 
+                                                   placeholder="메모를 입력하세요" 
+                                                   data-job-id="{{ job.id }}" 
+                                                   value="{{ job.memo|default:'' }}">
+                                            <button class="btn btn-outline-secondary btn-sm save-memo" type="button" data-job-id="{{ job.id }}">저장</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i> 진행 중인 작업이 없습니다.
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- 완료 탭 -->
+                    <div class="tab-pane fade" id="completed" role="tabpanel" aria-labelledby="completed-tab">
+                        {% if completed_jobs %}
+                        <div class="job-actions mb-3">
+                            <div class="d-flex align-items-center">
+                                <div class="form-check me-2">
+                                    <input class="form-check-input" type="checkbox" id="select-all-completed">
+                                    <label class="form-check-label" for="select-all-completed">전체 선택</label>
+                                </div>
+                                <button id="delete-selected-completed" class="btn btn-sm btn-outline-danger" disabled>선택 삭제</button>
+                            </div>
+                        </div>
+                        
+                        <div id="completed-jobs-container">
+                            {% for job in completed_jobs %}
+                            <div class="card job-card" data-job-id="{{ job.id }}">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div class="flex-grow-1">
+                                            <div class="form-check">
+                                                <input class="form-check-input job-checkbox" type="checkbox" value="{{ job.id }}" id="job-completed-{{ job.id }}">
+                                                <label class="form-check-label h5" for="job-completed-{{ job.id }}">
+                                                    {% if job.title %}
+                                                        {{ job.title|truncatechars:50 }}
+                                                    {% else %}
+                                                        {{ job.src_url|truncatechars:50 }}
+                                                    {% endif %}
+                                                </label>
+                                            </div>
+                                            <p class="card-text">
+                                                <small class="text-muted">
+                                                    <span class="me-2">
+                                                        <i class="fas fa-link"></i> {{ job.src_url|truncatechars:30 }}
+                                                    </span>
+                                                    <span class="me-2">
+                                                        <i class="fas fa-calendar-alt"></i> {{ job.created_at|date:"Y-m-d H:i" }}
+                                                    </span>
+                                                    <span class="me-2">
+                                                        <i class="fas fa-check-circle"></i> {{ job.finished_at|date:"Y-m-d H:i" }}
+                                                    </span>
+                                                    <span class="me-2">
+                                                        <i class="fas fa-film"></i> {{ job.get_quality_display }}
+                                                    </span>
+                                                    <span>
+                                                        <span class="badge bg-success">완료</span>
+                                                    </span>
+                                                </small>
+                                            </p>
+                                        </div>
+                                        
+                                        <div>
+                                            {% for file in job.files.all %}
+                                            <a href="{% url 'downloads:download_file' file.id %}" class="btn btn-sm btn-success">
+                                                <i class="fas fa-download"></i> 다운로드
+                                            </a>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="memo-container">
+                                        <div class="input-group">
+                                            <input type="text" class="form-control form-control-sm memo-input" 
+                                                   placeholder="메모를 입력하세요" 
+                                                   data-job-id="{{ job.id }}" 
+                                                   value="{{ job.memo|default:'' }}">
+                                            <button class="btn btn-outline-secondary btn-sm save-memo" type="button" data-job-id="{{ job.id }}">저장</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i> 완료된 작업이 없습니다.
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- 취소 탭 -->
+                    <div class="tab-pane fade" id="cancelled" role="tabpanel" aria-labelledby="cancelled-tab">
+                        {% if cancelled_jobs %}
+                        <div class="job-actions mb-3">
+                            <div class="d-flex align-items-center">
+                                <div class="form-check me-2">
+                                    <input class="form-check-input" type="checkbox" id="select-all-cancelled">
+                                    <label class="form-check-label" for="select-all-cancelled">전체 선택</label>
+                                </div>
+                                <button id="delete-selected-cancelled" class="btn btn-sm btn-outline-danger" disabled>선택 삭제</button>
+                            </div>
+                        </div>
+                        
+                        <div id="cancelled-jobs-container">
+                            {% for job in cancelled_jobs %}
+                            <div class="card job-card" data-job-id="{{ job.id }}">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div class="flex-grow-1">
+                                            <div class="form-check">
+                                                <input class="form-check-input job-checkbox" type="checkbox" value="{{ job.id }}" id="job-cancelled-{{ job.id }}">
+                                                <label class="form-check-label h5" for="job-cancelled-{{ job.id }}">
+                                                    {% if job.title %}
+                                                        {{ job.title|truncatechars:50 }}
+                                                    {% else %}
+                                                        {{ job.src_url|truncatechars:50 }}
+                                                    {% endif %}
+                                                </label>
+                                            </div>
+                                            <p class="card-text">
+                                                <small class="text-muted">
+                                                    <span class="me-2">
+                                                        <i class="fas fa-link"></i> {{ job.src_url|truncatechars:30 }}
+                                                    </span>
+                                                    <span class="me-2">
+                                                        <i class="fas fa-calendar-alt"></i> {{ job.created_at|date:"Y-m-d H:i" }}
+                                                    </span>
+                                                    <span class="me-2">
+                                                        <i class="fas fa-times-circle"></i> {{ job.finished_at|date:"Y-m-d H:i" }}
+                                                    </span>
+                                                    <span class="me-2">
+                                                        <i class="fas fa-film"></i> {{ job.get_quality_display }}
+                                                    </span>
+                                                    <span>
+                                                        <span class="badge bg-danger">취소</span>
+                                                    </span>
+                                                </small>
+                                            </p>
+                                            {% if job.error_msg %}
+                                            <p class="text-danger"><small>{{ job.error_msg }}</small></p>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="memo-container">
+                                        <div class="input-group">
+                                            <input type="text" class="form-control form-control-sm memo-input" 
+                                                   placeholder="메모를 입력하세요" 
+                                                   data-job-id="{{ job.id }}" 
+                                                   value="{{ job.memo|default:'' }}">
+                                            <button class="btn btn-outline-secondary btn-sm save-memo" type="button" data-job-id="{{ job.id }}">저장</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i> 취소된 작업이 없습니다.
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock content %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // CSRF 토큰 설정
+    const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    
+    $.ajaxSetup({
+        beforeSend: function(xhr, settings) {
+            if (!/^(GET|HEAD|OPTIONS|TRACE)$/i.test(settings.type) && !this.crossDomain) {
+                xhr.setRequestHeader("X-CSRFToken", csrftoken);
+            }
+        }
+    });
+
+    // 태그 선택/해제 기능 (다운로드 폼용)
+    $(document).on('click', '.clickable-tag', function() {
+        const $tag = $(this);
+        if ($tag.hasClass('selected')) {
+            // 선택 해제
+            $tag.removeClass('selected').css('opacity', '0.6');
+        } else {
+            // 선택
+            $tag.addClass('selected').css('opacity', '1');
+        }
+        updateSelectedTagsInput();
+    });
+    
+    // 선택된 태그들을 hidden input에 업데이트
+    function updateSelectedTagsInput() {
+        const selectedTags = $('#available-tags .clickable-tag.selected').map(function() {
+            return $(this).data('tag-id');
+        }).get();
+        $('#selected-tags-input').val(selectedTags.join(','));
+    }
+
+    // 태그 새로 생성 폼 처리
+    $('#tag-form').on('submit', function(e) {
+        e.preventDefault();
+        const tagName = $('#new-tag').val().trim();
+        if (!tagName) {
+            alert('태그 이름을 입력해주세요.');
+            return;
+        }
+        
+        $.ajax({
+            url: '/downloads/create_tag/',
+            type: 'POST',
+            data: {
+                'name': tagName,
+                'color': 'pastel-blue',
+                'csrfmiddlewaretoken': csrftoken
+            },
+            success: function(response) {
+                if (response.status === 'success') {
+                    const tag = response.tag;
+                    // 태그 목록에 추가
+                    const tagHtml = `
+                        <div class="tag-item" data-tag-id="${tag.id}">
+                            <span class="pastel-tag ${tag.color}">
+                                <span class="tag-name" contenteditable="true">${tag.name}</span>
+                                <span class="tag-actions">
+                                    <span class="tag-color-picker" title="색상 변경">
+                                        <i class="fas fa-palette"></i>
+                                    </span>
+                                    <span class="tag-close-btn" title="삭제">×</span>
+                                </span>
+                            </span>
+                        </div>`;
+                    $('#tag-list').append(tagHtml);
+                    
+                    // 다운로드 폼의 태그 선택 영역에도 추가
+                    const clickableTagHtml = `<span class="pastel-tag ${tag.color} clickable-tag" data-tag-id="${tag.id}" style="cursor: pointer; opacity: 0.6; transition: opacity 0.2s;">${tag.name}</span>`;
+                    $('#available-tags').append(clickableTagHtml);
+                    
+                    // 모든 작업(job)의 태그 추가창에도 새 태그 추가
+                    $('.available-job-tags').each(function() {
+                        const $jobTagsContainer = $(this);
+                        // 해당 작업 카드에서 job-id 찾기
+                        const $jobCard = $jobTagsContainer.closest('.job-card');
+                        const jobId = $jobCard.data('job-id');
+                        
+                        // job-id가 있는 경우에만 태그 추가
+                        if (jobId) {
+                            const availableJobTagHtml = `<span class="pastel-tag ${tag.color} available-job-tag" data-tag-id="${tag.id}" data-job-id="${jobId}" style="cursor: pointer; margin: 0.2em;">${tag.name}</span>`;
+                            $jobTagsContainer.append(availableJobTagHtml);
+                        }
+                    });
+                    
+                    // 만약 현재 작업이 하나도 없다면, 새로운 작업이 생성될 때를 위해 전역 태그 리스트 업데이트
+                    window.availableTags = window.availableTags || [];
+                    window.availableTags.push(tag);
+                    
+                    $('#new-tag').val('');
+                    console.log(`새 태그 "${tag.name}"이(가) 모든 작업에 추가되었습니다.`);
+                } else {
+                    alert(response.message);
+                }
+            },
+            error: function() {
+                alert('태그 생성 중 오류가 발생했습니다.');
+            }
+        });
+    });
+
+    // 태그 삭제 버튼 클릭
+    $(document).on('click', '.tag-close-btn', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        const tagId = $(this).closest('.tag-item').data('tag-id');
+        const tagName = $(this).closest('.tag-item').find('.tag-name').text();
+        
+        if (confirm(`"${tagName}" 태그를 삭제하시겠습니까?`)) {
+            $.ajax({
+                url: '/downloads/tag/delete/' + tagId + '/',
+                type: 'POST',
+                data: {
+                    'csrfmiddlewaretoken': csrftoken
+                },
+                success: function(response) {
+                    if (response.status === 'success') {
+                        // 1. 태그 관리 영역에서 제거
+                        $(`.tag-item[data-tag-id="${tagId}"]`).remove();
+                        
+                        // 2. 다운로드 폼의 선택 가능한 태그에서 제거
+                        $(`.clickable-tag[data-tag-id="${tagId}"]`).remove();
+                        
+                        // 3. 모든 작업(job)에서 해당 태그 제거
+                        $(`.job-tag[data-tag-id="${tagId}"]`).remove();
+                        
+                        // 4. 작업에 태그 추가할 때 사용하는 available-job-tag에서도 제거
+                        $(`.available-job-tag[data-tag-id="${tagId}"]`).remove();
+                        
+                        // 5. 빈 태그 리스트 정리 (태그가 모두 제거된 경우)
+                        $('.job-tags-list').each(function() {
+                            if ($(this).find('.job-tag').length === 0) {
+                                $(this).hide();
+                            }
+                        });
+                        
+                        // 6. 사용자에게 성공 메시지 표시
+                        const deletedTag = response.deleted_tag;
+                        let message = `태그 "${deletedTag.name}"이(가) 삭제되었습니다.`;
+                        if (deletedTag.related_jobs_count > 0) {
+                            message += `\n${deletedTag.related_jobs_count}개의 작업에서 해당 태그가 제거되었습니다.`;
+                        }
+                        alert(message);
+                        
+                        console.log(`태그 "${tagName}" (ID: ${tagId})가 모든 작업에서 제거되었습니다.`);
+                    } else {
+                        alert(response.message);
+                    }
+                },
+                error: function() {
+                    alert('태그 삭제 중 오류가 발생했습니다.');
+                }
+            });
+        }
+    });
+
+    // 태그 인라인 수정 처리
+    let originalTagName = '';
+    $(document).on('focus', '.tag-name', function() {
+        originalTagName = $(this).text().trim();
+    });
+    
+    $(document).on('keydown', '.tag-name', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            $(this).blur();
+        }
+    });
+    
+    $(document).on('blur', '.tag-name', function() {
+        const $this = $(this);
+        const tagId = $this.closest('.tag-item').data('tag-id');
+        const newName = $this.text().trim();
+        if (newName && newName !== originalTagName) {
+            $.ajax({
+                url: '/downloads/tag/update/' + tagId + '/',
+                type: 'POST',
+                data: {
+                    'name': newName,
+                    'csrfmiddlewaretoken': csrftoken
+                },
+                success: function(response) {
+                    if (response.status === 'success') {
+                        const updatedName = response.tag.name;
+                        
+                        // 1. 태그 관리 영역 업데이트
+                        $this.text(updatedName);
+                        
+                        // 2. 다운로드 폼의 선택 가능한 태그 이름 업데이트
+                        $(`.clickable-tag[data-tag-id="${tagId}"]`).text(updatedName);
+                        
+                        // 3. 모든 작업(job)에 표시된 태그 이름 업데이트
+                        $(`.job-tag[data-tag-id="${tagId}"]`).each(function() {
+                            const $jobTag = $(this);
+                            // 태그 텍스트 노드만 찾아서 업데이트 (× 버튼은 그대로 유지)
+                            const closeBtn = $jobTag.find('.job-tag-close-btn');
+                            $jobTag.contents().filter(function() {
+                                return this.nodeType === 3; // 텍스트 노드만 필터링
+                            }).remove();
+                            $jobTag.prepend(updatedName + ' ');
+                        });
+                        
+                        // 4. 작업에 태그 추가할 때 사용하는 available-job-tag 이름 업데이트
+                        $(`.available-job-tag[data-tag-id="${tagId}"]`).text(updatedName);
+                        
+                        console.log(`태그 "${originalTagName}"이(가) "${updatedName}"으로 변경되었습니다.`);
+                    } else {
+                        alert(response.message);
+                        $this.text(originalTagName);
+                    }
+                },
+                error: function() {
+                    alert('태그 이름 수정 중 오류가 발생했습니다.');
+                    $this.text(originalTagName);
+                }
+            });
+        } else if (!newName) {
+            $this.text(originalTagName);
+        }
+    });
+
+    // 태그 색상 변경 처리
+    let currentTagId = null;
+    const colorPickerModal = new bootstrap.Modal(document.getElementById('colorPickerModal'));
+    
+    $(document).on('click', '.tag-color-picker', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        currentTagId = $(this).closest('.tag-item').data('tag-id');
+        const currentColor = $(this).closest('.pastel-tag').attr('class').split(' ').find(c => c.startsWith('pastel-'));
+        
+        $('.color-option').removeClass('selected');
+        $(`.color-option[data-color="${currentColor}"]`).addClass('selected');
+        
+        colorPickerModal.show();
+    });
+    
+    $('.color-option').click(function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        const newColor = $(this).data('color');
+        
+        $.ajax({
+            url: '/downloads/tag/update/' + currentTagId + '/',
+            type: 'POST',
+            data: {
+                'color': newColor,
+                'csrfmiddlewaretoken': csrftoken
+            },
+            success: function(response) {
+                if (response.status === 'success') {
+                    const newColor = response.tag.color;
+                    
+                    // 1. 태그 관리 영역의 태그 색상 업데이트
+                    const $tagElement = $(`.tag-item[data-tag-id="${currentTagId}"] .pastel-tag`);
+                    $tagElement.removeClass('pastel-blue pastel-green pastel-yellow pastel-pink pastel-purple pastel-orange pastel-mint pastel-gray')
+                             .addClass(newColor);
+                    
+                    // 2. 다운로드 폼의 선택 가능한 태그 색상 업데이트
+                    const $clickableTag = $(`.clickable-tag[data-tag-id="${currentTagId}"]`);
+                    $clickableTag.removeClass('pastel-blue pastel-green pastel-yellow pastel-pink pastel-purple pastel-orange pastel-mint pastel-gray')
+                               .addClass(newColor);
+                    
+                    // 3. 모든 작업(job)에 표시된 태그 색상 업데이트
+                    $(`.job-tag[data-tag-id="${currentTagId}"]`).removeClass('pastel-blue pastel-green pastel-yellow pastel-pink pastel-purple pastel-orange pastel-mint pastel-gray')
+                                                             .addClass(newColor);
+                    
+                    // 4. 작업에 태그 추가할 때 사용하는 available-job-tag 색상 업데이트
+                    $(`.available-job-tag[data-tag-id="${currentTagId}"]`).removeClass('pastel-blue pastel-green pastel-yellow pastel-pink pastel-purple pastel-orange pastel-mint pastel-gray')
+                                                                        .addClass(newColor);
+                    
+                    colorPickerModal.hide();
+                    console.log(`태그 ID ${currentTagId}의 색상이 ${newColor}로 변경되었습니다.`);
+                } else {
+                    alert(response.message);
+                }
+            },
+            error: function() {
+                alert('태그 색상 변경 중 오류가 발생했습니다.');
+            }
+        });
+    });
+
+    // 작업에 태그 추가 버튼 클릭
+    $(document).on('click', '.add-tag-btn', function() {
+        const $this = $(this);
+        const $availableTags = $this.siblings('.available-job-tags');
+        
+        if ($availableTags.is(':visible')) {
+            $availableTags.slideUp();
+            $this.html('<i class="fas fa-tag"></i> 태그 추가');
+        } else {
+            $availableTags.slideDown();
+            $this.html('<i class="fas fa-times"></i> 닫기');
+        }
+    });
+    
+    // 사용 가능한 태그 클릭으로 작업에 태그 추가
+    $(document).on('click', '.available-job-tag', function() {
+        const jobId = $(this).data('job-id');
+        const tagId = $(this).data('tag-id');
+        
+        $.ajax({
+            url: '/downloads/job/tag/toggle/',
+            type: 'POST',
+            data: {
+                'job_id': jobId,
+                'tag_id': tagId,
+                'csrfmiddlewaretoken': csrftoken
+            },
+            success: function(response) {
+                if (response.status === 'success' && response.action === 'added') {
+                    const $jobCard = $(`.job-card[data-job-id="${jobId}"]`);
+                    let $tagsList = $jobCard.find('.job-tags-list');
+                    
+                    if ($tagsList.length === 0) {
+                        $tagsList = $('<div class="job-tags-list mt-2"></div>');
+                        $jobCard.find('.job-tag-controls').before($tagsList);
+                    }
+                    
+                    // 서버에서 받은 태그 정보 사용
+                    const tag = response.tag;
+                    if ($tagsList.find(`[data-tag-id="${tag.id}"]`).length === 0) {
+                        const tagHtml = `<span class="pastel-tag ${tag.color} job-tag" data-tag-id="${tag.id}">
+                            ${tag.name}
+                            <span class="job-tag-close-btn" title="태그 제거">×</span>
+                        </span>`;
+                        $tagsList.append(tagHtml);
+                    }
+                    
+                    const $addBtn = $jobCard.find('.add-tag-btn');
+                    $addBtn.siblings('.available-job-tags').slideUp();
+                    $addBtn.html('<i class="fas fa-tag"></i> 태그 추가');
+                } else if (response.status === 'error') {
+                    alert(response.message);
+                }
+            },
+            error: function() {
+                alert('태그 추가 중 오류가 발생했습니다.');
+            }
+        });
+    });
+
+    // 작업의 태그 x 버튼 클릭 시 제거
+    $(document).on('click', '.job-tag-close-btn', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        const $jobTag = $(this).closest('.job-tag');
+        const jobId = $jobTag.closest('.job-card').data('job-id');
+        const tagId = $jobTag.data('tag-id');
+        
+        $.ajax({
+            url: '/downloads/job/tag/toggle/',
+            type: 'POST',
+            data: {
+                'job_id': jobId,
+                'tag_id': tagId,
+                'csrfmiddlewaretoken': csrftoken
+            },
+            success: function(response) {
+                if (response.status === 'success' && response.action === 'removed') {
+                    $jobTag.remove();
+                }
+            },
+            error: function() {
+                alert('태그 제거 중 오류가 발생했습니다.');
+            }
+        });
+    });
+
+    // ===============================
+    // 전체 선택 기능 추가
+    // ===============================
+    
+    // 전체 선택 체크박스 이벤트
+    function setupSelectAll() {
+        // 각 탭의 전체 선택 체크박스 이벤트
+        $('#select-all-all').change(function() {
+            const isChecked = $(this).is(':checked');
+            $('#all .job-checkbox').prop('checked', isChecked);
+            updateBulkActionButtons('#all');
+        });
+        
+        $('#select-all-active').change(function() {
+            const isChecked = $(this).is(':checked');
+            $('#active .job-checkbox').prop('checked', isChecked);
+            updateBulkActionButtons('#active');
+        });
+        
+        $('#select-all-completed').change(function() {
+            const isChecked = $(this).is(':checked');
+            $('#completed .job-checkbox').prop('checked', isChecked);
+            updateBulkActionButtons('#completed');
+        });
+        
+        $('#select-all-cancelled').change(function() {
+            const isChecked = $(this).is(':checked');
+            $('#cancelled .job-checkbox').prop('checked', isChecked);
+            updateBulkActionButtons('#cancelled');
+        });
+        
+        // 개별 체크박스 이벤트
+        $(document).on('change', '.job-checkbox', function() {
+            const tabId = $(this).closest('.tab-pane').attr('id');
+            updateSelectAllCheckbox('#' + tabId);
+            updateBulkActionButtons('#' + tabId);
+        });
+    }
+    
+    // 전체 선택 체크박스 상태 업데이트
+    function updateSelectAllCheckbox(tabSelector) {
+        const $tab = $(tabSelector);
+        const $checkboxes = $tab.find('.job-checkbox');
+        const $selectAllCheckbox = $tab.find('[id^="select-all"]');
+        
+        if ($checkboxes.length === 0) return;
+        
+        const checkedCount = $checkboxes.filter(':checked').length;
+        
+        if (checkedCount === 0) {
+            $selectAllCheckbox.prop('checked', false).prop('indeterminate', false);
+        } else if (checkedCount === $checkboxes.length) {
+            $selectAllCheckbox.prop('checked', true).prop('indeterminate', false);
+        } else {
+            $selectAllCheckbox.prop('checked', false).prop('indeterminate', true);
+        }
+    }
+    
+    // 대량 작업 버튼 상태 업데이트
+    function updateBulkActionButtons(tabSelector) {
+        const $tab = $(tabSelector);
+        const checkedCount = $tab.find('.job-checkbox:checked').length;
+        
+        // 취소 버튼 (진행 중인 작업만)
+        const $cancelBtn = $tab.find('[id^="cancel-selected"]');
+        $cancelBtn.prop('disabled', checkedCount === 0);
+        
+        // 삭제 버튼
+        const $deleteBtn = $tab.find('[id^="delete-selected"]');
+        $deleteBtn.prop('disabled', checkedCount === 0);
+    }
+    
+    // 선택된 작업들 취소하기
+    function cancelSelectedJobs(tabSelector) {
+        const $tab = $(tabSelector);
+        const selectedJobIds = $tab.find('.job-checkbox:checked').map(function() {
+            return $(this).val();
+        }).get();
+        
+        if (selectedJobIds.length === 0) {
+            alert('취소할 작업을 선택해주세요.');
+            return;
+        }
+        
+        if (!confirm(`선택된 ${selectedJobIds.length}개의 작업을 취소하시겠습니까?`)) {
+            return;
+        }
+        
+        // 각 작업을 개별적으로 취소
+        let completed = 0;
+        let errors = 0;
+        
+        selectedJobIds.forEach(jobId => {
+            $.ajax({
+                url: '/downloads/cancel/' + jobId + '/',
+                type: 'POST',
+                headers: {
+                    'X-CSRFToken': csrftoken,
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                success: function() {
+                    completed++;
+                    if (completed + errors === selectedJobIds.length) {
+                        location.reload();
+                    }
+                },
+                error: function() {
+                    errors++;
+                    if (completed + errors === selectedJobIds.length) {
+                        if (errors > 0) {
+                            alert(`${completed}개의 작업이 취소되었습니다. ${errors}개의 작업 취소에 실패했습니다.`);
+                        }
+                        location.reload();
+                    }
+                }
+            });
+        });
+    }
+    
+    // 선택된 작업들 삭제하기
+    function deleteSelectedJobs(tabSelector) {
+        const $tab = $(tabSelector);
+        const selectedJobIds = $tab.find('.job-checkbox:checked').map(function() {
+            return $(this).val();
+        }).get();
+        
+        if (selectedJobIds.length === 0) {
+            alert('삭제할 작업을 선택해주세요.');
+            return;
+        }
+        
+        if (!confirm(`선택된 ${selectedJobIds.length}개의 작업을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.`)) {
+            return;
+        }
+        
+        // 각 작업을 개별적으로 삭제
+        let completed = 0;
+        let errors = 0;
+        
+        selectedJobIds.forEach(jobId => {
+            $.ajax({
+                url: '/downloads/delete/' + jobId + '/',
+                type: 'POST',
+                headers: {
+                    'X-CSRFToken': csrftoken,
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                success: function() {
+                    completed++;
+                    if (completed + errors === selectedJobIds.length) {
+                        location.reload();
+                    }
+                },
+                error: function() {
+                    errors++;
+                    if (completed + errors === selectedJobIds.length) {
+                        if (errors > 0) {
+                            alert(`${completed}개의 작업이 삭제되었습니다. ${errors}개의 작업 삭제에 실패했습니다.`);
+                        }
+                        location.reload();
+                    }
+                }
+            });
+        });
+    }
+    
+    // 대량 작업 버튼 이벤트 핸들러
+    function setupBulkActionButtons() {
+        // 취소 버튼들
+        $('#cancel-selected-all').click(function() {
+            cancelSelectedJobs('#all');
+        });
+        
+        $('#cancel-selected-active').click(function() {
+            cancelSelectedJobs('#active');
+        });
+        
+        // 삭제 버튼들
+        $('#delete-selected-all').click(function() {
+            deleteSelectedJobs('#all');
+        });
+        
+        $('#delete-selected-completed').click(function() {
+            deleteSelectedJobs('#completed');
+        });
+        
+        $('#delete-selected-cancelled').click(function() {
+            deleteSelectedJobs('#cancelled');
+        });
+    }
+    
+    // 전체 선택 및 대량 작업 기능 초기화
+    setupSelectAll();
+    setupBulkActionButtons();
+
+    // ===============================
+    // 필터링 기능 추가
+    // ===============================
+    
+    // 필터 상태 관리
+    let activeFilters = {
+        status: [], // 상태 필터
+        tags: [],   // 태그 필터
+        sort: '최신순' // 정렬 방식
+    };
+    
+    // 상태별 필터 버튼 클릭 이벤트
+    $(document).on('click', '.filter-btn', function(e) {
+        e.preventDefault();
+        const $this = $(this);
+        const filterType = $this.data('filter');
+        
+        // 버튼 활성화/비활성화 토글
+        $this.toggleClass('active');
+        
+        // 필터 상태 업데이트
+        if ($this.hasClass('active')) {
+            if (!activeFilters.status.includes(filterType)) {
+                activeFilters.status.push(filterType);
+            }
+        } else {
+            activeFilters.status = activeFilters.status.filter(f => f !== filterType);
+        }
+        
+        // 필터링 적용
+        applyFilters();
+        updateFilterStatus();
+    });
+    
+    // 정렬 옵션 변경 이벤트
+    $('#sort-options').change(function() {
+        activeFilters.sort = $(this).val();
+        applyFilters();
+    });
+    
+    // 태그 클릭 필터 기능 (작업 카드의 태그 클릭 시)
+    $(document).on('click', '.job-tag', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        // x 버튼 클릭인 경우 제외
+        if ($(e.target).hasClass('job-tag-close-btn')) {
+            return;
+        }
+        
+        const tagId = $(this).data('tag-id');
+        const tagName = $(this).contents().filter(function() {
+            return this.nodeType === 3; // 텍스트 노드만
+        }).text().trim();
+        
+        // 태그 필터 토글
+        if (activeFilters.tags.includes(tagId)) {
+            // 필터 제거
+            activeFilters.tags = activeFilters.tags.filter(t => t !== tagId);
+            removeTagFilterChip(tagId);
+        } else {
+            // 필터 추가
+            activeFilters.tags.push(tagId);
+            addTagFilterChip(tagId, tagName, $(this).attr('class').split(' ').find(c => c.startsWith('pastel-')));
+        }
+        
+        applyFilters();
+        updateFilterStatus();
+    });
+    
+    // 태그 필터 칩 추가
+    function addTagFilterChip(tagId, tagName, colorClass) {
+        // 태그 필터 영역이 없으면 생성
+        if ($('#tag-filter-area').length === 0) {
+            const tagFilterHtml = `
+                <div id="tag-filter-area" class="mb-3">
+                    <div class="d-flex align-items-center">
+                        <span class="me-2"><strong>태그 필터:</strong></span>
+                        <div id="tag-filter-chips" class="d-flex flex-wrap gap-1"></div>
+                        <button id="clear-tag-filters" class="btn btn-sm btn-outline-secondary ms-2" style="display: none;">모든 태그 필터 해제</button>
+                    </div>
+                </div>`;
+            $('.job-actions').after(tagFilterHtml);
+        }
+        
+        // 이미 있는 필터인지 확인
+        if ($(`#tag-filter-chips .tag-filter-chip[data-tag-id="${tagId}"]`).length > 0) {
+            return;
+        }
+        
+        // 태그 필터 칩 추가
+        const chipHtml = `
+            <span class="tag-filter-chip pastel-tag ${colorClass}" data-tag-id="${tagId}" style="position: relative; padding-right: 2em;">
+                ${tagName}
+                <span class="tag-filter-remove" style="position: absolute; right: 0.5em; top: 50%; transform: translateY(-50%); cursor: pointer; font-weight: bold;">×</span>
+            </span>`;
+        $('#tag-filter-chips').append(chipHtml);
+        
+        // 모든 태그 필터 해제 버튼 표시
+        $('#clear-tag-filters').show();
+    }
+    
+    // 태그 필터 칩 제거
+    function removeTagFilterChip(tagId) {
+        $(`.tag-filter-chip[data-tag-id="${tagId}"]`).remove();
+        
+        // 태그 필터가 모두 제거되면 영역 숨기기
+        if ($('#tag-filter-chips .tag-filter-chip').length === 0) {
+            $('#clear-tag-filters').hide();
+        }
+    }
+    
+    // 태그 필터 칩 제거 버튼 클릭 이벤트
+    $(document).on('click', '.tag-filter-remove', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        const tagId = $(this).closest('.tag-filter-chip').data('tag-id');
+        activeFilters.tags = activeFilters.tags.filter(t => t !== tagId);
+        removeTagFilterChip(tagId);
+        applyFilters();
+        updateFilterStatus();
+    });
+    
+    // 모든 태그 필터 해제 버튼 클릭 이벤트
+    $(document).on('click', '#clear-tag-filters', function(e) {
+        e.preventDefault();
+        activeFilters.tags = [];
+        $('#tag-filter-chips').empty();
+        $('#clear-tag-filters').hide();
+        applyFilters();
+        updateFilterStatus();
+    });
+    
+    // 필터링 적용 함수
+    function applyFilters() {
+        console.log('필터링 적용 시작:', activeFilters); // 디버깅용
+        
+        const $jobCards = $('#all-jobs-container .job-card');
+        let visibleCount = 0;
+        
+        console.log('전체 작업 카드 수:', $jobCards.length); // 디버깅용
+        
+        $jobCards.each(function() {
+            const $card = $(this);
+            let shouldShow = true;
+            
+            // 상태 필터 체크
+            if (activeFilters.status.length > 0) {
+                const jobStatus = getJobStatus($card);
+                const statusMatch = activeFilters.status.includes(jobStatus);
+                console.log(`작업 ${$card.data('job-id')} 상태: ${jobStatus}, 필터 매치: ${statusMatch}`); // 디버깅용
+                shouldShow = shouldShow && statusMatch;
+            }
+            
+            // 태그 필터 체크 (선택된 모든 태그를 가져야 함)
+            if (activeFilters.tags.length > 0) {
+                const jobTags = getJobTags($card);
+                const hasAllTags = activeFilters.tags.every(tagId => jobTags.includes(parseInt(tagId)));
+                console.log(`작업 ${$card.data('job-id')} 태그: [${jobTags.join(', ')}], 필요한 태그: [${activeFilters.tags.join(', ')}], 매치: ${hasAllTags}`); // 디버깅용
+                shouldShow = shouldShow && hasAllTags;
+            }
+            
+            if (shouldShow) {
+                $card.show();
+                visibleCount++;
+            } else {
+                $card.hide();
+            }
+        });
+        
+        console.log('필터링 후 표시되는 작업 수:', visibleCount); // 디버깅용
+        
+        // 정렬 적용
+        if (visibleCount > 0) {
+            applySorting();
+        }
+        
+        // 결과 없음 메시지 표시/숨김
+        showNoResultsMessage(visibleCount === 0);
+    }
+    
+    // 작업 카드에서 상태 추출
+    function getJobStatus($card) {
+        const $badge = $card.find('.badge');
+        const badgeText = $badge.text().trim();
+        
+        console.log('Badge text:', badgeText); // 디버깅용
+        
+        switch (badgeText) {
+            case '대기 중':
+                return 'queued';
+            case '진행 중':
+                return 'running';
+            case '완료':
+                return 'done';
+            case '취소':
+                return 'cancelled';
+            default:
+                // 추가적인 상태 매핑
+                if (badgeText.includes('대기') || badgeText.includes('pending')) {
+                    return 'queued';
+                } else if (badgeText.includes('진행') || badgeText.includes('processing')) {
+                    return 'running';
+                } else if (badgeText.includes('완료') || badgeText.includes('done') || badgeText.includes('completed')) {
+                    return 'done';
+                } else if (badgeText.includes('취소') || badgeText.includes('cancelled') || badgeText.includes('failed')) {
+                    return 'cancelled';
+                }
+                console.warn('알 수 없는 상태:', badgeText);
+                return 'unknown';
+        }
+    }
+    
+    // 작업 카드에서 태그 ID 목록 추출
+    function getJobTags($card) {
+        const tagIds = [];
+        $card.find('.job-tag').each(function() {
+            const tagId = $(this).data('tag-id');
+            if (tagId) {
+                tagIds.push(parseInt(tagId));
+            }
+        });
+        return tagIds;
+    }
+    
+    // 정렬 적용
+    function applySorting() {
+        const $container = $('#all-jobs-container');
+        const $cards = $container.find('.job-card:visible').detach();
+        
+        $cards.sort(function(a, b) {
+            const $a = $(a);
+            const $b = $(b);
+            
+            switch (activeFilters.sort) {
+                case '최신순':
+                    return getJobDate($b) - getJobDate($a);
+                case '오래된순':
+                    return getJobDate($a) - getJobDate($b);
+                case '상태순_오름차순':
+                    return getStatusOrder($a) - getStatusOrder($b);
+                case '상태순_내림차순':
+                    return getStatusOrder($b) - getStatusOrder($a);
+                default:
+                    return 0;
+            }
+        });
+        
+        $container.prepend($cards);
+    }
+    
+    // 작업 생성 날짜 추출
+    function getJobDate($card) {
+        const dateText = $card.find('.fa-calendar-alt').parent().text();
+        const dateMatch = dateText.match(/(\d{4}-\d{2}-\d{2} \d{2}:\d{2})/);
+        return dateMatch ? new Date(dateMatch[1]) : new Date(0);
+    }
+    
+    // 상태별 정렬 순서
+    function getStatusOrder($card) {
+        const status = getJobStatus($card);
+        const order = { 'running': 1, 'queued': 2, 'done': 3, 'cancelled': 4 };
+        return order[status] || 5;
+    }
+    
+    // 결과 없음 메시지 표시/숨김
+    function showNoResultsMessage(show) {
+        if (show) {
+            if ($('#no-results-message').length === 0) {
+                const messageHtml = `
+                    <div id="no-results-message" class="alert alert-info text-center">
+                        <i class="fas fa-search me-2"></i>
+                        현재 적용된 필터 조건에 맞는 작업이 없습니다.
+                        <br>
+                        <small class="text-muted">필터를 변경하거나 해제해보세요.</small>
+                    </div>`;
+                $('#all-jobs-container').append(messageHtml);
+            }
+        } else {
+            $('#no-results-message').remove();
+        }
+    }
+    
+    // 필터 상태 업데이트 (UI 표시)
+    function updateFilterStatus() {
+        // 필터 카운트 표시
+        const totalFilters = activeFilters.status.length + activeFilters.tags.length;
+        
+        if (totalFilters > 0) {
+            if ($('#filter-status').length === 0) {
+                const statusHtml = `
+                    <div id="filter-status" class="mb-2">
+                        <span class="badge bg-info">
+                            <i class="fas fa-filter me-1"></i>
+                            필터 적용됨 (<span id="filter-count">${totalFilters}</span>개)
+                            <button id="clear-all-filters" class="btn-close btn-close-white btn-sm ms-2" style="font-size: 0.6em;"></button>
+                        </span>
+                    </div>`;
+                $('.card-body.tab-content').prepend(statusHtml);
+            } else {
+                $('#filter-count').text(totalFilters);
+            }
+        } else {
+            $('#filter-status').remove();
+        }
+    }
+    
+    // 모든 필터 해제 버튼
+    $(document).on('click', '#clear-all-filters', function(e) {
+        e.preventDefault();
+        
+        // 모든 필터 초기화
+        activeFilters.status = [];
+        activeFilters.tags = [];
+        
+        // UI 초기화
+        $('.filter-btn').removeClass('active');
+        $('#tag-filter-chips').empty();
+        $('#clear-tag-filters').hide();
+        $('#filter-status').remove();
+        $('#tag-filter-area').remove();
+        
+        // 모든 작업 표시
+        $('#all-jobs-container .job-card').show();
+        showNoResultsMessage(false);
+        
+        // 기본 정렬 적용
+        applySorting();
+    });
+    
+    // 페이지 로드 시 URL 파라미터로부터 필터 상태 복원
+    function initializeFiltersFromURL() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const filters = urlParams.get('filters');
+        
+        if (filters) {
+            const filterArray = filters.split(',');
+            filterArray.forEach(filter => {
+                $(`.filter-btn[data-filter="${filter}"]`).addClass('active');
+                activeFilters.status.push(filter);
+            });
+        }
+        
+        const sort = urlParams.get('sort');
+        if (sort) {
+            $('#sort-options').val(sort);
+            activeFilters.sort = sort;
+        }
+        
+        if (activeFilters.status.length > 0) {
+            applyFilters();
+            updateFilterStatus();
+        }
+    }
+    
+    // 필터링 기능 초기화
+    initializeFiltersFromURL();
+    
+    // 디버깅: 필터링 기능이 로드되었는지 확인
+    console.log('필터링 기능이 초기화되었습니다.');
+    console.log('현재 필터 상태:', activeFilters);
+    
+    // 필터 버튼이 제대로 로드되었는지 확인
+    console.log('필터 버튼 개수:', $('.filter-btn').length);
+    
+    // 페이지 로드 완료 후 필터링 기능 테스트
+    setTimeout(function() {
+        console.log('작업 카드 개수:', $('.job-card').length);
+        console.log('태그가 있는 작업 카드 개수:', $('.job-card .job-tag').length);
+    }, 1000);
+
+    // 폼 제출 처리
+    window.submitDownloadForm = function(event) {
+        event.preventDefault();
+        
+        const form = document.getElementById('download-form');
+        const formData = new FormData(form);
+        const selectedTags = $('#available-tags .clickable-tag.selected').map(function() {
+            return $(this).data('tag-id');
+        }).get();
+        formData.append('selected_tags', selectedTags.join(','));
+        formData.append('is_ajax', 'true');
+        
+        const submitBtn = document.getElementById('submit-btn');
+        const loadingSpinner = document.getElementById('loading-spinner');
+        const formResult = document.getElementById('form-result');
+        
+        submitBtn.disabled = true;
+        loadingSpinner.classList.remove('d-none');
+        
+        fetch(form.action, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                formResult.innerHTML = `<div class="alert alert-success">${data.message}</div>`;
+                form.reset();
+                $('.clickable-tag').removeClass('selected').css('opacity', '0.6');
+                $('#selected-tags-input').val('');
+                setTimeout(() => location.reload(), 1000);
+            } else {
+                formResult.innerHTML = `<div class="alert alert-danger">${data.message}</div>`;
+            }
+        })
+        .catch(error => {
+            formResult.innerHTML = '<div class="alert alert-danger">요청 처리 중 오류가 발생했습니다.</div>';
+        })
+        .finally(() => {
+            submitBtn.disabled = false;
+            loadingSpinner.classList.add('d-none');
+        });
+    };
+    
+    document.getElementById('download-form').addEventListener('submit', submitDownloadForm);
+
+    // 취소 버튼 이벤트 처리
+    $(document).on('click', '.btn-cancel', function() {
+        const jobId = $(this).data('job-id');
+        
+        if (confirm('작업을 취소하시겠습니까?')) {
+            $.ajax({
+                url: '/downloads/cancel/' + jobId + '/',
+                type: 'POST',
+                headers: {
+                    'X-CSRFToken': csrftoken,
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                success: function(response) {
+                    alert('작업이 취소되었습니다.');
+                    location.reload();
+                },
+                error: function(xhr) {
+                    alert('작업 취소 요청 처리 중 오류가 발생했습니다.');
+                }
+            });
+        }
+    });
+
+    // 메모 저장
+    $(document).on('click', '.save-memo', function() {
+        const jobId = $(this).data('job-id');
+        const memo = $(this).prev('.memo-input').val();
+        
+        $.ajax({
+            url: '/downloads/job/memo/',
+            type: 'POST',
+            headers: {
+                'X-CSRFToken': csrftoken,
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            data: {
+                'job_id': jobId,
+                'memo': memo,
+                'is_ajax': 'true'
+            },
+            success: function(response) {
+                if (response.status === 'success') {
+                    alert('메모가 저장되었습니다.');
+                } else {
+                    alert(response.message);
+                }
+            },
+            error: function() {
+                alert('메모 저장 중 오류가 발생했습니다.');
+            }
+        });
+    });
+});
+</script>
+{% endblock extra_js %}

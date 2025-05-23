@@ -1,0 +1,22 @@
+[Unit]
+Description=YouTube Downloader Django Application
+After=network.target postgresql.service redis.service
+
+[Service]
+Type=notify
+User=www-data
+Group=www-data
+RuntimeDirectory=youtube_downloader
+WorkingDirectory=/var/www/youtube_downloader
+Environment=DJANGO_SETTINGS_MODULE=config.settings
+EnvironmentFile=/var/www/youtube_downloader/.env
+ExecStart=/var/www/youtube_downloader/venv/bin/gunicorn --config gunicorn.conf.py config.wsgi:application
+ExecReload=/bin/kill -s HUP $MAINPID
+KillMode=mixed
+TimeoutStopSec=5
+PrivateTmp=true
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target 
