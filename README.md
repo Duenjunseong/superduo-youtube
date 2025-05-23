@@ -258,7 +258,7 @@ STATIC_ROOT=/var/www/youtube_downloader/static
 
 # 로깅
 LOG_LEVEL=INFO
-LOG_FILE=/var/log/youtube_downloader/django.log
+LOG_FILE=./logs/django.log
 
 # 보안 설정 (HTTPS 사용 시)
 SECURE_SSL_REDIRECT=True

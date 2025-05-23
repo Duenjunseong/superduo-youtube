@@ -14,8 +14,8 @@ timeout = 30
 keepalive = 2
 
 # 로깅 설정
-accesslog = "/var/log/youtube_downloader/gunicorn_access.log"
-errorlog = "/var/log/youtube_downloader/gunicorn_error.log"
+accesslog = "./logs/gunicorn_access.log"
+errorlog = "./logs/gunicorn_error.log"
 loglevel = "info"
 access_log_format = '%(h)s %(l)s %(u)s %(t)s "%(r)s" %(s)s %(b)s "%(f)s" "%(a)s"'
 
