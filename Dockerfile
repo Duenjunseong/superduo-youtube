@@ -22,11 +22,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # 프로젝트 파일 복사
 COPY . .
 
-# 로그 디렉토리 및 미디어 디렉토리 생성 (collectstatic 이전에)
-RUN mkdir -p /app/logs /app/media
-
-# 정적 파일 수집
-RUN python manage.py collectstatic --noinput
+# 필요한 디렉토리 생성
+RUN mkdir -p /app/logs /app/media /app/static /app/staticfiles
 
 # 권한 설정
 RUN useradd -m -s /bin/bash appuser && \

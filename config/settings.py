@@ -134,7 +134,12 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.0/howto/static-files/
 
 STATIC_URL = "static/"
-STATICFILES_DIRS = [BASE_DIR / "static"]
+
+# STATICFILES_DIRS 조건부 설정 (디렉토리가 존재할 때만)
+STATICFILES_DIRS = []
+if (BASE_DIR / "static").exists() and any((BASE_DIR / "static").iterdir()):
+    STATICFILES_DIRS.append(BASE_DIR / "static")
+
 STATIC_ROOT = config('STATIC_ROOT', default=str(BASE_DIR / "staticfiles"))
 
 # WhiteNoise 설정 (정적 파일 압축)
