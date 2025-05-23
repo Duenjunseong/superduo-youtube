@@ -2143,6 +2143,261 @@ $(document).ready(function() {
             }
         });
     });
+
+    // 실시간 작업 진행도 갱신 기능
+    let progressUpdateInterval;
+    let isUpdating = false;
+
+    function updateJobProgress() {
+        if (isUpdating) return;
+        isUpdating = true;
+
+        $.ajax({
+            url: '/downloads/job_progress/',
+            type: 'GET',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            success: function(response) {
+                // 진행 중인 작업들 업데이트
+                response.active_jobs.forEach(function(job) {
+                    updateJobCard(job, 'active');
+                });
+
+                // 완료된 작업들 업데이트 (필요한 경우 전체 페이지 새로고침)
+                let hasNewCompletedJobs = false;
+                response.completed_jobs.forEach(function(job) {
+                    const existingCard = $(`.job-card[data-job-id="${job.id}"]`);
+                    if (existingCard.length > 0) {
+                        const currentStatus = getJobStatusFromCard(existingCard);
+                        if (['pending', 'processing', 'queued', 'running'].includes(currentStatus) && 
+                            ['completed', 'done', 'failed', 'cancelled'].includes(job.status)) {
+                            hasNewCompletedJobs = true;
+                        }
+                        updateJobCard(job, 'completed');
+                    }
+                });
+
+                // 새로 완료된 작업이 있으면 알림 표시
+                if (hasNewCompletedJobs) {
+                    showCompletionNotification();
+                }
+
+                console.log(`작업 상태 업데이트 완료: ${response.timestamp}`);
+            },
+            error: function(xhr, status, error) {
+                console.error('작업 진행도 업데이트 실패:', error);
+            },
+            complete: function() {
+                isUpdating = false;
+            }
+        });
+    }
+
+    function updateJobCard(job, type) {
+        const jobCard = $(`.job-card[data-job-id="${job.id}"]`);
+        if (jobCard.length === 0) return;
+
+        // 상태 배지 업데이트
+        const statusBadge = jobCard.find('.badge');
+        const newStatusText = getStatusText(job.status);
+        const newStatusClass = getStatusBadgeClass(job.status);
+        
+        if (statusBadge.text().trim() !== newStatusText) {
+            statusBadge.removeClass('bg-info bg-primary bg-success bg-danger bg-secondary bg-warning')
+                     .addClass(newStatusClass)
+                     .text(newStatusText);
+        }
+
+        // 진행도 바 업데이트
+        const progressBar = jobCard.find('.progress-bar');
+        if (progressBar.length > 0) {
+            const currentProgress = parseInt(progressBar.attr('aria-valuenow')) || 0;
+            
+            if (job.progress !== currentProgress) {
+                progressBar.css('width', job.progress + '%')
+                          .attr('aria-valuenow', job.progress)
+                          .text(job.progress.toFixed(1) + '%');
+                
+                // 진행도 애니메이션 효과
+                progressBar.addClass('progress-bar-animated');
+                
+                // 완료 시 애니메이션 제거
+                if (job.progress >= 100) {
+                    setTimeout(() => {
+                        progressBar.removeClass('progress-bar-animated');
+                    }, 1000);
+                }
+            }
+        }
+
+        // 완료된 작업의 경우 진행도 바 숨기기
+        if (['completed', 'done', 'failed', 'cancelled'].includes(job.status)) {
+            const progressContainer = jobCard.find('.progress');
+            if (progressContainer.length > 0) {
+                progressContainer.fadeOut(500);
+            }
+            
+            // 취소 버튼 숨기기
+            const cancelBtn = jobCard.find('.btn-cancel');
+            if (cancelBtn.length > 0) {
+                cancelBtn.fadeOut(300);
+            }
+
+            // 완료된 작업에 다운로드 링크 추가 (필요한 경우)
+            if (job.status === 'completed' || job.status === 'done') {
+                addDownloadLinks(jobCard, job);
+            }
+        }
+
+        // 에러 메시지 표시
+        if (job.error_message && job.status === 'failed') {
+            showErrorMessage(jobCard, job.error_message);
+        }
+    }
+
+    function getJobStatusFromCard(jobCard) {
+        const badge = jobCard.find('.badge');
+        const badgeText = badge.text().trim();
+        
+        if (badgeText.includes('대기')) return 'pending';
+        if (badgeText.includes('진행')) return 'processing';
+        if (badgeText.includes('완료')) return 'completed';
+        if (badgeText.includes('취소') || badgeText.includes('실패')) return 'failed';
+        
+        return 'unknown';
+    }
+
+    function getStatusText(status) {
+        const statusMap = {
+            'pending': '대기 중',
+            'queued': '대기 중', 
+            'processing': '진행 중',
+            'running': '진행 중',
+            'completed': '완료',
+            'done': '완료',
+            'failed': '실패',
+            'cancelled': '취소됨'
+        };
+        return statusMap[status] || status;
+    }
+
+    function getStatusBadgeClass(status) {
+        const classMap = {
+            'pending': 'bg-info',
+            'queued': 'bg-info',
+            'processing': 'bg-primary', 
+            'running': 'bg-primary',
+            'completed': 'bg-success',
+            'done': 'bg-success',
+            'failed': 'bg-danger',
+            'cancelled': 'bg-secondary'
+        };
+        return classMap[status] || 'bg-secondary';
+    }
+
+    function addDownloadLinks(jobCard, job) {
+        const downloadSection = jobCard.find('.download-links');
+        if (downloadSection.length === 0 && job.files && job.files.length > 0) {
+            let downloadHtml = '<div class="download-links mt-2"><small class="text-muted">다운로드:</small><br>';
+            job.files.forEach(function(file) {
+                downloadHtml += `<a href="/downloads/file/${file.id}/" class="btn btn-sm btn-outline-primary me-1 mt-1">
+                    <i class="fas fa-download"></i> ${file.filename}
+                </a>`;
+            });
+            downloadHtml += '</div>';
+            jobCard.find('.card-body').append(downloadHtml);
+        }
+    }
+
+    function showErrorMessage(jobCard, errorMessage) {
+        const errorDiv = jobCard.find('.error-message');
+        if (errorDiv.length === 0) {
+            const errorHtml = `<div class="error-message mt-2">
+                <div class="alert alert-danger alert-sm">
+                    <i class="fas fa-exclamation-triangle"></i> ${errorMessage}
+                </div>
+            </div>`;
+            jobCard.find('.card-body').append(errorHtml);
+        }
+    }
+
+    function showCompletionNotification() {
+        // 간단한 알림 표시
+        if ($('#completion-notification').length === 0) {
+            const notificationHtml = `
+                <div id="completion-notification" class="alert alert-success alert-dismissible fade show position-fixed" 
+                     style="top: 20px; right: 20px; z-index: 1050; max-width: 300px;">
+                    <i class="fas fa-check-circle"></i> 작업이 완료되었습니다!
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>`;
+            $('body').append(notificationHtml);
+            
+            // 5초 후 자동 제거
+            setTimeout(() => {
+                $('#completion-notification').fadeOut(500, function() {
+                    $(this).remove();
+                });
+            }, 5000);
+        }
+    }
+
+    function startProgressUpdates() {
+        // 진행 중인 작업이 있는지 확인
+        const hasActiveJobs = $('.job-card').toArray().some(function(card) {
+            const status = getJobStatusFromCard($(card));
+            return ['pending', 'processing', 'queued', 'running'].includes(status);
+        });
+
+        if (hasActiveJobs) {
+            console.log('진행 중인 작업이 있어 자동 갱신을 시작합니다.');
+            
+            // 3초마다 업데이트
+            progressUpdateInterval = setInterval(updateJobProgress, 3000);
+            
+            // 페이지 로드 후 즉시 한 번 업데이트
+            setTimeout(updateJobProgress, 1000);
+        } else {
+            console.log('진행 중인 작업이 없어 자동 갱신을 시작하지 않습니다.');
+        }
+    }
+
+    function stopProgressUpdates() {
+        if (progressUpdateInterval) {
+            clearInterval(progressUpdateInterval);
+            progressUpdateInterval = null;
+            console.log('자동 갱신을 중지했습니다.');
+        }
+    }
+
+    // 페이지 로드 시 자동 갱신 시작
+    $(document).ready(function() {
+        startProgressUpdates();
+        
+        // 탭 변경 시에도 갱신 시작/중지
+        $('a[data-bs-toggle="tab"]').on('shown.bs.tab', function(e) {
+            const targetTab = $(e.target).attr('aria-controls');
+            if (targetTab === 'active' || targetTab === 'all') {
+                startProgressUpdates();
+            } else {
+                stopProgressUpdates();
+            }
+        });
+    });
+
+    // 페이지 언로드 시 인터벌 정리
+    $(window).on('beforeunload', function() {
+        stopProgressUpdates();
+    });
+
+    // 페이지 가시성 변경 시 갱신 제어 (브라우저 탭이 비활성화되면 갱신 중지)
+    document.addEventListener('visibilitychange', function() {
+        if (document.hidden) {
+            stopProgressUpdates();
+        } else {
+            startProgressUpdates();
+        }
+    });
 });
 </script>
 {% endblock extra_js %}

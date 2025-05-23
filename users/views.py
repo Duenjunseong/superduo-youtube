@@ -7,9 +7,11 @@ from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth import get_user_model
 
-from django.contrib.auth.models import User
 from .forms import CustomUserCreationForm, CustomUserChangeForm
+
+User = get_user_model()
 
 
 class CustomLoginView(LoginView):
@@ -82,13 +84,13 @@ def logout_view(request):
 
 def register(request):
     if request.method == 'POST':
-        form = UserCreationForm(request.POST)
+        form = CustomUserCreationForm(request.POST)
         if form.is_valid():
             user = form.save()
             login(request, user)
             return redirect('core:index')
     else:
-        form = UserCreationForm()
+        form = CustomUserCreationForm()
     return render(request, 'users/register.html', {'form': form})
 
 @login_required

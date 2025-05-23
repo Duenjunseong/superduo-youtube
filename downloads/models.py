@@ -1,7 +1,5 @@
 from django.db import models
 from django.conf import settings
-from django.contrib.auth.models import User
-import uuid
 
 class Tag(models.Model):
     name = models.CharField(max_length=50)
@@ -23,10 +21,10 @@ class Job(models.Model):
         ('running', '진행 중'),
         ('done', '완료'),
         ('cancelled', '취소'),
-        ('pending', '대기 중'),  # 기존 호환성 유지
-        ('processing', '처리 중'),  # 기존 호환성 유지
-        ('completed', '완료'),  # 기존 호환성 유지
-        ('failed', '실패'),  # 기존 호환성 유지
+        ('pending', '대기 중'),
+        ('processing', '처리 중'),
+        ('completed', '완료'),
+        ('failed', '실패'),
     )
     
     QUALITY_CHOICES = (
@@ -37,21 +35,20 @@ class Job(models.Model):
         ('audio', '오디오만'),
     )
     
-    # id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='jobs')
     url = models.URLField(max_length=2000)
-    src_url = models.URLField(max_length=2000, blank=True, null=True)  # links.html용 추가 필드
-    title = models.CharField(max_length=500, blank=True, null=True)  # YouTube 영상 제목
+    src_url = models.URLField(max_length=2000, blank=True, null=True)
+    title = models.CharField(max_length=500, blank=True, null=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     quality = models.CharField(max_length=20, choices=QUALITY_CHOICES, default='highest')
     task_id = models.CharField(max_length=100, blank=True, null=True)
     error_message = models.TextField(blank=True, null=True)
-    error_msg = models.TextField(blank=True, null=True)  # 호환성을 위한 필드
+    error_msg = models.TextField(blank=True, null=True)
     memo = models.TextField(blank=True, null=True)
     progress = models.FloatField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    finished_at = models.DateTimeField(blank=True, null=True)  # 작업 완료/취소 시간
+    finished_at = models.DateTimeField(blank=True, null=True)
     tags = models.ManyToManyField(Tag, related_name='jobs', blank=True)
     
     def __str__(self):
@@ -85,39 +82,3 @@ class File(models.Model):
     
     class Meta:
         ordering = ['-created_at']
-
-class DownloadJob(models.Model):
-    STATUS_CHOICES = [
-        ('pending', '대기 중'),
-        ('queued', '대기 중'),
-        ('running', '진행 중'),
-        ('processing', '처리 중'),
-        ('completed', '완료'),
-        ('done', '완료'),
-        ('cancelled', '취소'),
-        ('failed', '실패'),
-    ]
-    
-    QUALITY_CHOICES = [
-        ('best', '최고 품질'),
-        ('1080p', '1080p'),
-        ('720p', '720p'),
-        ('480p', '480p'),
-        ('360p', '360p'),
-    ]
-    
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
-    src_url = models.URLField()
-    title = models.CharField(max_length=200, blank=True)
-    quality = models.CharField(max_length=10, choices=QUALITY_CHOICES, default='best')
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
-    progress = models.FloatField(default=0)
-    error_msg = models.TextField(blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    finished_at = models.DateTimeField(null=True, blank=True)
-    memo = models.TextField(blank=True)
-    tags = models.ManyToManyField(Tag, blank=True)
-    
-    def __str__(self):
-        return f"{self.title or self.src_url} ({self.get_status_display()})"

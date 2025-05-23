@@ -56,6 +56,7 @@ def download_video(url, user_id):
     job = None
     try:
         logger.info(f"다운로드 작업 시작: URL={url}, User ID={user_id}")
+        logger.info(f"URL type: {type(url)}, User ID type: {type(user_id)}")
         
         # 작업 상태 업데이트
         user = User.objects.get(id=user_id)
@@ -83,6 +84,7 @@ def download_video(url, user_id):
                     '--no-warnings',
                     url
                 ]
+                logger.info(f"영상 정보 가져오기 명령: {' '.join(info_cmd)}")
                 info_result = subprocess.run(info_cmd, capture_output=True, text=True, check=True)
                 video_info = json.loads(info_result.stdout)
                 job.title = video_info.get('title', '')
@@ -95,7 +97,9 @@ def download_video(url, user_id):
         
         # 다운로드할 디렉토리 생성
         media_root = settings.MEDIA_ROOT
+        logger.info(f"MEDIA_ROOT: {media_root}, type: {type(media_root)}")
         user_dir = os.path.join(media_root, f'user_{user_id}')
+        logger.info(f"User directory: {user_dir}, type: {type(user_dir)}")
         os.makedirs(user_dir, exist_ok=True)
         logger.info(f"사용자 디렉토리 생성: {user_dir}")
         
@@ -103,97 +107,99 @@ def download_video(url, user_id):
         temp_dir = tempfile.mkdtemp(dir=user_dir)
         logger.info(f"임시 디렉토리 생성: {temp_dir}")
         
-        # 품질 설정에 따른 yt-dlp 포맷 선택
-        if job.quality == 'highest':
-            format_spec = 'best'  # 단순화
-        elif job.quality == '720p':
-            format_spec = 'best[height<=720]'
-        elif job.quality == '480p':
-            format_spec = 'best[height<=480]'
-        elif job.quality == '360p':
-            format_spec = 'best[height<=360]'
-        elif job.quality == 'audio':
-            format_spec = 'bestaudio'
-        else:
-            format_spec = 'best'
-        
-        # 파일명 설정 (더 안전한 템플릿)
-        # YouTube ID를 사용하여 안전한 파일명 생성
+        # 다운로드 명령 구성
         output_template = os.path.join(temp_dir, '%(id)s.%(ext)s')
         
-        # 진행 상황 업데이트를 위한 함수
-        job.progress = 10
-        job.save()
-        logger.info(f"다운로드 준비 중: progress=10%")
-        
         # YouTube Shorts인지 확인
-        is_shorts = 'shorts/' in url.lower()
+        is_shorts = 'shorts/' in url
         logger.info(f"YouTube Shorts 여부: {is_shorts}")
         
-        # yt-dlp를 사용하여 실제 다운로드
+        # 포맷 선택 최적화 - 높은 해상도 우선
+        if is_shorts:
+            # Shorts의 경우 iOS 클라이언트를 사용하여 고해상도 접근
+            extractor_args = 'youtube:player_client=ios'
+            
+            if job.quality == 'highest':
+                # 1080p 우선, 없으면 720p, 그 다음 fallback
+                format_selector = "270+234/232+234/231+234/230+234/18"
+            elif job.quality == '720p':
+                format_selector = "232+234/231+234/230+234/18"
+            elif job.quality == '480p':
+                format_selector = "231+234/230+234/18"
+            elif job.quality == '360p':
+                format_selector = "230+234/18"
+            elif job.quality == 'audio':
+                format_selector = "234/233"
+            else:
+                # 기본값: 가능한 한 높은 해상도
+                format_selector = "270+234/232+234/231+234/230+234/18"
+        else:
+            # 일반 비디오의 경우 web,android 클라이언트 사용
+            extractor_args = 'youtube:player_client=web,android'
+            
+            if job.quality == 'highest':
+                format_selector = "bestvideo[height>=1080]+bestaudio/bestvideo[height>=720]+bestaudio/bestvideo+bestaudio/best"
+            elif job.quality == '720p':
+                format_selector = "bestvideo[height>=720][height<=720]+bestaudio/bestvideo[height<=720]+bestaudio/best[height<=720]"
+            elif job.quality == '480p':
+                format_selector = "bestvideo[height>=480][height<=480]+bestaudio/bestvideo[height<=480]+bestaudio/best[height<=480]"
+            elif job.quality == '360p':
+                format_selector = "bestvideo[height>=360][height<=360]+bestaudio/bestvideo[height<=360]+bestaudio/best[height<=360]"
+            elif job.quality == 'audio':
+                format_selector = "bestaudio"
+            else:
+                format_selector = "bestvideo[height>=720]+bestaudio/bestvideo+bestaudio/best[height>=720]/best"
+        
+        # 기본 yt-dlp 명령어
         cmd = [
             'yt-dlp',
-            '-f', format_spec,
+            '-f', format_selector,
             '--no-playlist',
             '--no-warnings',
-            '--no-check-certificate',  # SSL 인증서 문제 방지
-            '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',  # User-Agent 설정
+            '--no-check-certificate',
+            '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
             '-o', output_template,
-            url
+            url,
+            '--extractor-args', extractor_args
         ]
-        
-        # Shorts의 경우 특별한 옵션 추가
-        if is_shorts:
-            cmd.extend(['--extractor-args', 'youtube:player_client=android'])
         
         logger.info(f"다운로드 명령 실행: {' '.join(cmd)}")
         
-        # subprocess 실행 시 더 자세한 에러 정보 수집
+        # 명령 실행
         try:
-            process = subprocess.run(cmd, check=True, capture_output=True, text=True, timeout=600)  # 10분 타임아웃
-            logger.info(f"yt-dlp 실행 성공 - stdout: {process.stdout}")
+            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+            logger.info(f"yt-dlp 실행 성공 - stdout: {result.stdout}")
+            if result.stderr:
+                logger.warning(f"yt-dlp stderr: {result.stderr}")
         except subprocess.CalledProcessError as e:
-            error_msg = f"yt-dlp 실행 실패 (exit code {e.returncode})\n"
-            error_msg += f"명령어: {' '.join(cmd)}\n"
-            error_msg += f"stdout: {e.stdout}\n"
-            error_msg += f"stderr: {e.stderr}\n"
-            logger.error(error_msg)
+            logger.error(f"yt-dlp 실행 실패: {e}")
+            logger.error(f"stderr: {e.stderr}")
+            logger.error(f"stdout: {e.stdout}")
             
-            # 일반적인 에러 메시지 변환
-            stderr_lower = e.stderr.lower() if e.stderr else ""
-            if "video unavailable" in stderr_lower or "private video" in stderr_lower:
-                raise Exception("비디오를 사용할 수 없습니다. 개인 비디오이거나 삭제된 비디오일 수 있습니다.")
-            elif "requested format is not available" in stderr_lower:
-                raise Exception("요청한 품질의 비디오를 사용할 수 없습니다. 다른 품질을 선택해주세요.")
-            elif "this video is not available" in stderr_lower:
-                raise Exception("이 비디오는 사용할 수 없습니다.")
-            elif "sign in to confirm your age" in stderr_lower:
-                raise Exception("연령 제한이 있는 비디오입니다.")
-            elif "this video has been removed" in stderr_lower:
-                raise Exception("이 비디오는 삭제되었습니다.")
-            elif "no video formats found" in stderr_lower:
-                # 폴백: 더 단순한 포맷으로 재시도
-                logger.info("포맷을 찾을 수 없음. 기본 포맷으로 재시도...")
-                fallback_cmd = [
-                    'yt-dlp',
-                    '--no-playlist',
-                    '--no-warnings',
-                    '-o', output_template,
-                    url
-                ]
-                try:
-                    fallback_process = subprocess.run(fallback_cmd, check=True, capture_output=True, text=True, timeout=600)
-                    logger.info(f"폴백 다운로드 성공: {fallback_process.stdout}")
-                except subprocess.CalledProcessError as fallback_e:
-                    raise Exception(f"다운로드 실패: {fallback_e.stderr}")
-            else:
-                raise Exception(f"다운로드 실패: {e.stderr or '알 수 없는 오류'}")
-        except subprocess.TimeoutExpired:
-            raise Exception("다운로드 시간이 초과되었습니다. 나중에 다시 시도해주세요.")
+            # 1차 실패 시 fallback 포맷으로 재시도
+            logger.info("더 간단한 포맷으로 재시도합니다...")
+            fallback_cmd = [
+                'yt-dlp',
+                '-f', 'best',
+                '--no-playlist',
+                '--no-warnings', 
+                '--no-check-certificate',
+                '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                '-o', output_template,
+                url
+            ]
+            
+            try:
+                result = subprocess.run(fallback_cmd, capture_output=True, text=True, check=True)
+                logger.info(f"Fallback 다운로드 성공: {result.stdout}")
+            except subprocess.CalledProcessError as fallback_e:
+                logger.error(f"Fallback 다운로드도 실패: {fallback_e}")
+                raise Exception(f"다운로드 실패: {fallback_e.stderr}")
         
-        job.progress = 70
+        # 10% 후 진행률 업데이트
+        job.progress = 10
         job.save()
-        logger.info(f"다운로드 진행 중: progress=70%")
+        logger.info(f"다운로드 준비 중: progress=10%")
         
         # 다운로드된 파일 찾기
         downloaded_files = [f for f in os.listdir(temp_dir) if os.path.isfile(os.path.join(temp_dir, f)) and not f.endswith('.info.json')]

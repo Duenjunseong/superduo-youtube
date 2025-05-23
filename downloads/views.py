@@ -17,7 +17,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.template.loader import render_to_string
 
 # 모델과 태스크 임포트
-from .models import Job, File, Tag, DownloadJob
+from .models import Job, File, Tag
 from .forms import LinkForm
 from .tasks.download import download_video
 
@@ -467,7 +467,7 @@ def update_job_tags(request):
     tag_ids = request.POST.getlist('tags')
     
     try:
-        job = DownloadJob.objects.get(id=job_id)
+        job = Job.objects.get(id=job_id)
         # 기존 태그 제거
         job.tags.clear()
         # 새 태그 추가
@@ -475,7 +475,7 @@ def update_job_tags(request):
             tags = Tag.objects.filter(id__in=tag_ids)
             job.tags.add(*tags)
         return JsonResponse({'status': 'success'})
-    except DownloadJob.DoesNotExist:
+    except Job.DoesNotExist:
         return JsonResponse({'status': 'error', 'message': '작업을 찾을 수 없습니다.'})
 
 @require_POST
@@ -563,15 +563,16 @@ def update_tag(request, tag_id):
 
 @login_required
 def toggle_job_tag(request):
+    """작업에 태그를 토글하는 뷰"""
     if request.method == 'POST':
+        job_id = request.POST.get('job_id')
+        tag_id = request.POST.get('tag_id')
+        
         try:
-            job_id = request.POST.get('job_id')
-            tag_id = request.POST.get('tag_id')
+            job = get_object_or_404(Job, id=job_id, user=request.user)
+            tag = get_object_or_404(Tag, id=tag_id, user=request.user)
             
-            job = Job.objects.get(id=job_id, user=request.user)
-            tag = Tag.objects.get(id=tag_id, user=request.user)
-            
-            if job.tags.filter(id=tag.id).exists():
+            if tag in job.tags.all():
                 job.tags.remove(tag)
                 action = 'removed'
             else:
@@ -581,18 +582,57 @@ def toggle_job_tag(request):
             return JsonResponse({
                 'status': 'success',
                 'action': action,
-                'tag': {
-                    'id': str(tag.id),
-                    'name': tag.name,
-                    'color': tag.color
-                }
+                'job_id': job_id,
+                'tag_id': tag_id,
+                'tag_name': tag.name
             })
         except (Job.DoesNotExist, Tag.DoesNotExist):
             return JsonResponse({
                 'status': 'error',
                 'message': '작업 또는 태그를 찾을 수 없습니다.'
-            }, status=404)
-    return JsonResponse({
-        'status': 'error',
-        'message': '잘못된 요청입니다.'
-    }, status=400)
+            })
+    
+    return JsonResponse({'status': 'error', 'message': '잘못된 요청입니다.'})
+
+@login_required
+def job_progress_update(request):
+    """작업 진행도를 실시간으로 확인하는 API"""
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        jobs_query = Job.objects.filter(user=request.user)
+        
+        # 진행 중인 작업들의 상태와 진행도 반환
+        active_jobs = jobs_query.filter(status__in=['pending', 'processing', 'queued', 'running'])
+        
+        job_updates = []
+        for job in active_jobs:
+            job_updates.append({
+                'id': job.id,
+                'status': job.status,
+                'progress': job.progress,
+                'title': job.title or job.url[:50] + '...' if len(job.url) > 50 else job.url,
+                'error_message': job.error_message
+            })
+        
+        # 최근 완료된 작업들도 포함 (마지막 갱신 이후 완료된 것들)
+        recently_completed = jobs_query.filter(
+            status__in=['completed', 'done', 'failed', 'cancelled']
+        ).order_by('-updated_at')[:5]
+        
+        completed_updates = []
+        for job in recently_completed:
+            completed_updates.append({
+                'id': job.id,
+                'status': job.status,
+                'progress': job.progress,
+                'title': job.title or job.url[:50] + '...' if len(job.url) > 50 else job.url,
+                'error_message': job.error_message,
+                'files': [{'id': f.id, 'filename': f.filename, 'file_size': f.file_size} for f in job.files.all()]
+            })
+        
+        return JsonResponse({
+            'active_jobs': job_updates,
+            'completed_jobs': completed_updates,
+            'timestamp': timezone.now().isoformat()
+        })
+    
+    return JsonResponse({'error': 'Invalid request'}, status=400)
