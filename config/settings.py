@@ -146,8 +146,8 @@ STATIC_ROOT = config('STATIC_ROOT', default=str(BASE_DIR / "staticfiles"))
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # Media files
-MEDIA_URL = "/media/"
-MEDIA_ROOT = config('MEDIA_ROOT', default=str(BASE_DIR / "media"))
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'data', 'media')
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field
@@ -238,4 +238,8 @@ if not DEBUG:
 
 # 파일 업로드 설정
 FILE_UPLOAD_MAX_MEMORY_SIZE = 5000 * 1024 * 1024  # 5000MB
-DATA_UPLOAD_MAX_MEMORY_SIZE = 5000 * 1024 * 1024  # 5000MB
+DATA_UPLOAD_MAX_MEMORY_SIZE = 5000 * 1024 * 1024
+
+# 파일 다운로드 설정
+FILE_DOWNLOAD_CHUNK_SIZE = 8192  # 8KB
+FILE_DOWNLOAD_TIMEOUT = 300  # 5분
