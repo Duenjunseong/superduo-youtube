@@ -75,7 +75,7 @@ sleep 15
 
 # 8. 데이터베이스 생성 (에러 무시)
 echo "🗄️  데이터베이스 생성 중..."
-docker exec -it $(docker-compose ps -q db) psql -U superduo -d postgres -c "CREATE DATABASE superduo_youtube;" 2>/dev/null || echo "데이터베이스가 이미 존재하거나 생성할 수 없습니다."
+docker exec -it $(docker-compose ps -q db) psql -U superduo -d postgres -c "CREATE DATABASE superduo_youtube;" 2>/dev/null || echo "데이터베이스가 이미 존재합니다."
 
 # 9. Django 웹 컨테이너 시작
 echo "🐳 Django 웹 컨테이너 시작 중..."
