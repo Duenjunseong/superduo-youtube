@@ -7,6 +7,11 @@ local_settings.py
 db.sqlite3
 db.sqlite3-journal
 
+# Django Migrations (동적 생성)
+*/migrations/00*.py
+*/migrations/0*.py
+!*/migrations/__init__.py
+
 # Environment variables
 .env
 .env.local

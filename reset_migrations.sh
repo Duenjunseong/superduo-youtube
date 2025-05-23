@@ -37,9 +37,11 @@ if [ -d "data/postgres" ]; then
 fi
 
 # 4. 사용자 권한 설정
-export UID=$(id -u)
-export GID=$(id -g)
-echo "📋 사용자 권한: UID=$UID, GID=$GID"
+USER_ID=$(id -u)
+GROUP_ID=$(id -g)
+export USER_ID
+export GROUP_ID
+echo "📋 사용자 권한: USER_ID=$USER_ID, GROUP_ID=$GROUP_ID"
 
 # 5. 컨테이너 시작 (데이터베이스만)
 echo "🚀 데이터베이스 컨테이너 시작 중..."
