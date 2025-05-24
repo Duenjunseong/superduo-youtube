@@ -15,6 +15,7 @@ from django.utils import timezone
 import os
 from django.views.decorators.csrf import csrf_exempt
 from django.template.loader import render_to_string
+from django.conf import settings
 
 # 모델과 태스크 임포트
 from .models import Job, File, Tag
@@ -254,34 +255,41 @@ def download_file(request, file_id):
     try:
         file = get_object_or_404(File, id=file_id, job__user=request.user)
         
-        # 파일이 존재하는지 확인
+        # 파일 존재 및 크기 확인
         if not os.path.exists(file.file_path):
-            print(f"파일을 찾을 수 없음: {file.file_path}")
             return HttpResponse("파일을 찾을 수 없습니다.", status=404)
         
-        # 파일 크기 확인
         file_size = os.path.getsize(file.file_path)
         if file_size == 0:
-            print(f"파일 크기가 0: {file.file_path}")
             return HttpResponse("파일이 비어있습니다.", status=400)
         
-        # 파일 응답 제공
-        response = FileResponse(open(file.file_path, 'rb'), as_attachment=True, filename=file.filename)
-        
-        # Content-Length 헤더 추가
-        response['Content-Length'] = file_size
-        
-        # Content-Type 헤더 추가
-        content_type = 'application/octet-stream'
-        if file.filename.endswith('.mp4'):
-            content_type = 'video/mp4'
-        elif file.filename.endswith('.webm'):
-            content_type = 'video/webm'
-        elif file.filename.endswith('.mp3'):
-            content_type = 'audio/mpeg'
-        response['Content-Type'] = content_type
-        
-        return response
+        # 운영환경에서는 X-Accel-Redirect 사용
+        if getattr(settings, 'USE_X_ACCEL_REDIRECT', False):
+            response = HttpResponse()
+            internal_url = f"/protected-files/{file.file_path.replace(settings.MEDIA_ROOT, '').lstrip('/')}"
+            response['X-Accel-Redirect'] = internal_url
+            response['Content-Disposition'] = f'attachment; filename="{file.filename}"'
+            
+            # Content-Type 설정
+            content_type = 'application/octet-stream'
+            if file.filename.endswith('.mp4'):
+                content_type = 'video/mp4'
+            elif file.filename.endswith('.webm'):
+                content_type = 'video/webm'
+            elif file.filename.endswith('.mp3'):
+                content_type = 'audio/mpeg'
+            response['Content-Type'] = content_type
+            
+            return response
+        else:
+            # 개발환경에서는 기존 방식 사용
+            response = FileResponse(
+                open(file.file_path, 'rb'), 
+                as_attachment=True, 
+                filename=file.filename
+            )
+            response['Content-Length'] = file_size
+            return response
         
     except Exception as e:
         print(f"파일 다운로드 중 오류 발생: {str(e)}")

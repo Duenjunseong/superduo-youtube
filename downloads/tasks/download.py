@@ -114,7 +114,7 @@ def download_video(url, user_id):
         is_shorts = 'shorts/' in url
         logger.info(f"YouTube Shorts 여부: {is_shorts}")
         
-        # 포맷 선택 최적화 - 높은 해상도 우선
+        # 포맷 선택 최적화 - 테스트로 검증된 최고 해상도 조합
         if is_shorts:
             # Shorts의 경우 iOS 클라이언트를 사용하여 고해상도 접근
             extractor_args = 'youtube:player_client=ios'
@@ -134,21 +134,24 @@ def download_video(url, user_id):
                 # 기본값: 가능한 한 높은 해상도
                 format_selector = "270+234/232+234/231+234/230+234/18"
         else:
-            # 일반 비디오의 경우 web,android 클라이언트 사용
-            extractor_args = 'youtube:player_client=web,android'
+            # 일반 비디오 - 테스트로 검증된 포맷 ID 사용
+            extractor_args = 'youtube:player_client=ios'
             
             if job.quality == 'highest':
-                format_selector = "bestvideo[height>=1080]+bestaudio/bestvideo[height>=720]+bestaudio/bestvideo+bestaudio/best"
+                # Premium → AVC1 1080p → VP9 1080p → 720p 순으로 fallback
+                # 오디오: 251(opus 고품질) → 140(m4a) → 234(m3u8) 순으로 fallback
+                format_selector = "616+251/616+140/616+234/270+251/270+140/270+234/614+251/614+140/614+234/232+251/232+140/232+234/bestvideo[height>=1080]+bestaudio/bestvideo[height>=720]+bestaudio/bestvideo+bestaudio/best"
             elif job.quality == '720p':
-                format_selector = "bestvideo[height>=720][height<=720]+bestaudio/bestvideo[height<=720]+bestaudio/best[height<=720]"
+                format_selector = "232+251/232+140/232+234/bestvideo[height>=720][height<=720]+bestaudio/bestvideo[height<=720]+bestaudio/best[height<=720]"
             elif job.quality == '480p':
-                format_selector = "bestvideo[height>=480][height<=480]+bestaudio/bestvideo[height<=480]+bestaudio/best[height<=480]"
+                format_selector = "231+251/231+140/231+234/bestvideo[height>=480][height<=480]+bestaudio/bestvideo[height<=480]+bestaudio/best[height<=480]"
             elif job.quality == '360p':
-                format_selector = "bestvideo[height>=360][height<=360]+bestaudio/bestvideo[height<=360]+bestaudio/best[height<=360]"
+                format_selector = "230+251/230+140/230+234/bestvideo[height>=360][height<=360]+bestaudio/bestvideo[height<=360]+bestaudio/best[height<=360]"
             elif job.quality == 'audio':
-                format_selector = "bestaudio"
+                format_selector = "251/140/234/233/bestaudio"
             else:
-                format_selector = "bestvideo[height>=720]+bestaudio/bestvideo+bestaudio/best[height>=720]/best"
+                # 기본값: 최고 품질
+                format_selector = "616+251/616+140/616+234/270+251/270+140/270+234/614+251/614+140/614+234/232+251/232+140/232+234/bestvideo[height>=1080]+bestaudio/bestvideo+bestaudio/best"
         
         # 기본 yt-dlp 명령어
         cmd = [
@@ -157,13 +160,17 @@ def download_video(url, user_id):
             '--no-playlist',
             '--no-warnings',
             '--no-check-certificate',
-            '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            '--user-agent', 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15',
+            '--embed-chapters',  # 챕터 정보 포함
+            '--write-info-json',  # 메타데이터 JSON 파일 저장
             '-o', output_template,
             url,
             '--extractor-args', extractor_args
         ]
         
         logger.info(f"다운로드 명령 실행: {' '.join(cmd)}")
+        logger.info(f"선택된 포맷: {format_selector}")
+        logger.info(f"사용 중인 extractor_args: {extractor_args}")
         
         # 명령 실행
         try:
@@ -176,25 +183,61 @@ def download_video(url, user_id):
             logger.error(f"stderr: {e.stderr}")
             logger.error(f"stdout: {e.stdout}")
             
+            # 먼저 사용 가능한 포맷을 확인해보자
+            logger.info("사용 가능한 포맷 확인 중...")
+            format_check_cmd = [
+                'yt-dlp',
+                '-F',
+                '--no-warnings',
+                url,
+                '--extractor-args', extractor_args
+            ]
+            try:
+                format_result = subprocess.run(format_check_cmd, capture_output=True, text=True, check=True)
+                logger.info(f"사용 가능한 포맷들:\n{format_result.stdout}")
+            except subprocess.CalledProcessError as format_e:
+                logger.error(f"포맷 확인 실패: {format_e.stderr}")
+            
             # 1차 실패 시 fallback 포맷으로 재시도
             logger.info("더 간단한 포맷으로 재시도합니다...")
             fallback_cmd = [
                 'yt-dlp',
-                '-f', 'best',
+                '-f', '270+251/270+140/232+251/232+140/18',  # 검증된 포맷 조합
                 '--no-playlist',
                 '--no-warnings', 
                 '--no-check-certificate',
-                '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                '--user-agent', 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15',
                 '-o', output_template,
-                url
+                url,
+                '--extractor-args', 'youtube:player_client=ios'
             ]
+            logger.info(f"Fallback 명령 실행: {' '.join(fallback_cmd)}")
             
             try:
                 result = subprocess.run(fallback_cmd, capture_output=True, text=True, check=True)
                 logger.info(f"Fallback 다운로드 성공: {result.stdout}")
             except subprocess.CalledProcessError as fallback_e:
-                logger.error(f"Fallback 다운로드도 실패: {fallback_e}")
-                raise Exception(f"다운로드 실패: {fallback_e.stderr}")
+                logger.error(f"iOS Fallback 다운로드도 실패, Android로 재시도: {fallback_e}")
+                
+                # 마지막 시도: Android 클라이언트
+                android_cmd = [
+                    'yt-dlp',
+                    '-f', '18',  # 기본 360p 포맷
+                    '--no-playlist',
+                    '--no-warnings', 
+                    '--no-check-certificate',
+                    '--user-agent', 'com.google.android.youtube/17.36.37 (Linux; U; Android 11)',
+                    '-o', output_template,
+                    url,
+                    '--extractor-args', 'youtube:player_client=android'
+                ]
+                
+                try:
+                    result = subprocess.run(android_cmd, capture_output=True, text=True, check=True)
+                    logger.info(f"Android fallback 다운로드 성공: {result.stdout}")
+                except subprocess.CalledProcessError as android_e:
+                    logger.error(f"모든 fallback 다운로드 실패: {android_e}")
+                    raise Exception(f"다운로드 실패: {android_e.stderr}")
         
         # 10% 후 진행률 업데이트
         job.progress = 10
