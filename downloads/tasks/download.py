@@ -9,6 +9,7 @@ import random
 import logging
 import json
 import sys
+import shutil
 
 # 로거 설정
 logger = logging.getLogger(__name__)
@@ -254,13 +255,34 @@ def download_video(url, user_id):
         
         # 첫 번째 다운로드된 파일 사용
         filename = downloaded_files[0]
-        file_path = os.path.join(temp_dir, filename)
-        file_size = os.path.getsize(file_path)
+        temp_file_path = os.path.join(temp_dir, filename)
+        file_size = os.path.getsize(temp_file_path)
         
-        logger.info(f"파일 다운로드 완료: {file_path}, 크기: {file_size} bytes")
+        logger.info(f"임시 파일 다운로드 완료: {temp_file_path}, 크기: {file_size} bytes")
+        
+        # 영구 저장소로 파일 이동
+        permanent_dir = os.path.join(media_root, f'user_{user_id}', 'downloads')
+        os.makedirs(permanent_dir, exist_ok=True)
+        
+        # 파일명에 타임스탬프 추가하여 중복 방지
+        timestamp = int(time.time())
+        name, ext = os.path.splitext(filename)
+        permanent_filename = f"{name}_{timestamp}{ext}"
+        permanent_file_path = os.path.join(permanent_dir, permanent_filename)
+        
+        # 파일 이동
+        shutil.move(temp_file_path, permanent_file_path)
+        logger.info(f"파일을 영구 저장소로 이동: {permanent_file_path}")
+        
+        # 임시 디렉토리 정리
+        try:
+            shutil.rmtree(temp_dir)
+            logger.info(f"임시 디렉토리 정리: {temp_dir}")
+        except Exception as cleanup_e:
+            logger.warning(f"임시 디렉토리 정리 실패: {cleanup_e}")
         
         # 파일 타입 추정
-        file_ext = os.path.splitext(filename)[1].lower()
+        file_ext = os.path.splitext(permanent_filename)[1].lower()
         if file_ext in ['.mp4', '.mkv', '.webm', '.avi']:
             file_type = f'video/{file_ext[1:]}'
         elif file_ext in ['.mp3', '.m4a', '.wav', '.ogg']:
@@ -268,15 +290,15 @@ def download_video(url, user_id):
         else:
             file_type = 'application/octet-stream'
         
-        # 파일 정보 저장
+        # 파일 정보 저장 (영구 경로로)
         file = File.objects.create(
             job=job,
-            filename=filename,
-            file_path=file_path,
+            filename=permanent_filename,
+            file_path=permanent_file_path,
             file_size=file_size,
             file_type=file_type
         )
-        logger.info(f"파일 정보 저장: file_id={file.id}")
+        logger.info(f"파일 정보 저장: file_id={file.id}, path={permanent_file_path}")
         
         # 작업 완료 상태 업데이트
         job.status = 'completed'

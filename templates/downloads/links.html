@@ -2301,7 +2301,7 @@ $(document).ready(function() {
         if (downloadSection.length === 0 && job.files && job.files.length > 0) {
             let downloadHtml = '<div class="download-links mt-2"><small class="text-muted">다운로드:</small><br>';
             job.files.forEach(function(file) {
-                downloadHtml += `<a href="/downloads/file/${file.id}/" class="btn btn-sm btn-outline-primary me-1 mt-1">
+                downloadHtml += `<a href="{% url 'downloads:download_file' file.id %}" class="btn btn-sm btn-outline-primary me-1 mt-1">
                     <i class="fas fa-download"></i> ${file.filename}
                 </a>`;
             });

@@ -16,12 +16,16 @@ import os
 from django.views.decorators.csrf import csrf_exempt
 from django.template.loader import render_to_string
 from django.conf import settings
+import logging
+from pathlib import Path
+import mimetypes
 
 # 모델과 태스크 임포트
 from .models import Job, File, Tag
 from .forms import LinkForm
 from .tasks.download import download_video
 
+logger = logging.getLogger(__name__)
 
 # YouTube URL 정규식 패턴
 YOUTUBE_REGEX = re.compile(
@@ -253,46 +257,105 @@ def download_list(request):
 @login_required
 def download_file(request, file_id):
     try:
+        # UUID 유효성 검사
+        try:
+            uuid.UUID(file_id)  # UUID 형식 검증
+        except ValueError:
+            logger.error(f"잘못된 UUID 형식: {file_id}")
+            return HttpResponse("잘못된 파일 ID입니다.", status=400)
+        
         file = get_object_or_404(File, id=file_id, job__user=request.user)
         
-        # 파일 존재 및 크기 확인
-        if not os.path.exists(file.file_path):
-            return HttpResponse("파일을 찾을 수 없습니다.", status=404)
+        # 상세한 디버깅 정보 로깅
+        logger.info(f"다운로드 요청 - File ID: {file_id}, User: {request.user.username}")
+        logger.info(f"파일 정보 - filename: {file.filename}, file_path: {file.file_path}")
+        logger.info(f"MEDIA_ROOT: {settings.MEDIA_ROOT}")
+        logger.info(f"USE_X_ACCEL_REDIRECT: {getattr(settings, 'USE_X_ACCEL_REDIRECT', False)}")
         
-        file_size = os.path.getsize(file.file_path)
+        # 파일 경로 정규화
+        file_path = Path(file.file_path)
+        if not file_path.is_absolute():
+            # 상대 경로인 경우 MEDIA_ROOT와 결합
+            file_path = Path(settings.MEDIA_ROOT) / file.file_path
+        
+        logger.info(f"최종 파일 경로: {file_path}")
+        
+        # 파일 존재 확인
+        if not file_path.exists():
+            logger.error(f"파일이 존재하지 않음: {file_path}")
+            return HttpResponse(f"파일을 찾을 수 없습니다: {file_path}", status=404)
+        
+        # 파일 읽기 권한 확인
+        if not os.access(file_path, os.R_OK):
+            logger.error(f"파일 읽기 권한 없음: {file_path}")
+            return HttpResponse("파일에 대한 읽기 권한이 없습니다.", status=403)
+        
+        # 파일 크기 확인
+        file_size = file_path.stat().st_size
+        logger.info(f"파일 크기: {file_size} bytes")
+        
         if file_size == 0:
+            logger.error(f"파일 크기가 0: {file_path}")
             return HttpResponse("파일이 비어있습니다.", status=400)
+        
+        # Content-Type 결정 (mimetypes 모듈 사용)
+        content_type, _ = mimetypes.guess_type(file.filename)
+        if not content_type:
+            content_type = 'application/octet-stream'
+        
+        logger.info(f"Content-Type: {content_type}")
         
         # 운영환경에서는 X-Accel-Redirect 사용
         if getattr(settings, 'USE_X_ACCEL_REDIRECT', False):
+            logger.info("X-Accel-Redirect 방식 사용")
             response = HttpResponse()
-            internal_url = f"/protected-files/{file.file_path.replace(settings.MEDIA_ROOT, '').lstrip('/')}"
-            response['X-Accel-Redirect'] = internal_url
-            response['Content-Disposition'] = f'attachment; filename="{file.filename}"'
             
-            # Content-Type 설정
-            content_type = 'application/octet-stream'
-            if file.filename.endswith('.mp4'):
-                content_type = 'video/mp4'
-            elif file.filename.endswith('.webm'):
-                content_type = 'video/webm'
-            elif file.filename.endswith('.mp3'):
-                content_type = 'audio/mpeg'
-            response['Content-Type'] = content_type
+            # 파일 경로를 nginx가 이해할 수 있는 형태로 변환
+            media_root = Path(settings.MEDIA_ROOT)
+            try:
+                relative_path = file_path.relative_to(media_root)
+                internal_url = f"/protected-files/{relative_path}"
+                logger.info(f"Internal URL: {internal_url}")
+                
+                response['X-Accel-Redirect'] = internal_url
+                response['Content-Disposition'] = f'attachment; filename="{file.filename}"'
+                response['Content-Type'] = content_type
+                
+                return response
+            except ValueError as e:
+                logger.error(f"경로 변환 실패: {e}")
+                # X-Accel-Redirect 실패 시 일반 방식으로 폴백
+        
+        # 개발환경 또는 X-Accel-Redirect 실패 시 직접 전송
+        logger.info("FileResponse 방식 사용")
+        
+        try:
+            # 파일을 바이너리 모드로 열기
+            file_handle = open(file_path, 'rb')
             
-            return response
-        else:
-            # 개발환경에서는 기존 방식 사용
             response = FileResponse(
-                open(file.file_path, 'rb'), 
-                as_attachment=True, 
+                file_handle,
+                as_attachment=True,
                 filename=file.filename
             )
+            
             response['Content-Length'] = file_size
+            response['Content-Type'] = content_type
+            
+            # 캐시 헤더 추가
+            response['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+            response['Pragma'] = 'no-cache'
+            response['Expires'] = '0'
+            
+            logger.info(f"FileResponse 생성 완료 - Content-Length: {file_size}")
             return response
+            
+        except Exception as e:
+            logger.error(f"FileResponse 생성 실패: {str(e)}")
+            return HttpResponse(f"파일 읽기 중 오류가 발생했습니다: {str(e)}", status=500)
         
     except Exception as e:
-        print(f"파일 다운로드 중 오류 발생: {str(e)}")
+        logger.error(f"파일 다운로드 중 예외 발생: {str(e)}", exc_info=True)
         return HttpResponse(f"파일 다운로드 중 오류가 발생했습니다: {str(e)}", status=500)
 
 

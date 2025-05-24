@@ -1,5 +1,6 @@
 from django.db import models
 from django.conf import settings
+import uuid
 
 class Tag(models.Model):
     name = models.CharField(max_length=50)
@@ -16,6 +17,7 @@ class Tag(models.Model):
         return self.name
 
 class Job(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     STATUS_CHOICES = (
         ('queued', '대기 중'),
         ('running', '진행 중'),
@@ -70,6 +72,7 @@ class Job(models.Model):
         ordering = ['-created_at']
 
 class File(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     job = models.ForeignKey(Job, on_delete=models.CASCADE, related_name='files')
     filename = models.CharField(max_length=255)
     file_path = models.CharField(max_length=1000)
