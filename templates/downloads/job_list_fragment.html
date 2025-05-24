@@ -67,9 +67,11 @@
                     <button class="btn btn-sm btn-danger btn-cancel" data-job-id="{{ job.id }}">취소</button>
                     {% elif job.status == 'done' or job.status == 'completed' %}
                         {% for file in job.files.all %}
-                        <a href="{% url 'downloads:download_file' file.id %}" class="btn btn-sm btn-success">
+                        {% if file.id %}
+                        <a href="{% url 'downloads:download_file' file_id=file.id %}" class="btn btn-sm btn-success">
                             <i class="fas fa-download"></i> 다운로드
                         </a>
+                        {% endif %}
                         {% endfor %}
                     {% endif %}
                 </div>

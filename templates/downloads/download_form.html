@@ -56,6 +56,13 @@
 
 {% block extra_js %}
 <script>
+    // URL 패턴을 JavaScript 변수로 정의
+    const JOB_STATUS_URL_BASE = "/downloads/status/";
+    const DOWNLOAD_FILE_URL_BASE = "/downloads/file/";
+    
+    // CSRF 토큰 가져오기
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    
     document.addEventListener('DOMContentLoaded', function() {
         const form = document.getElementById('download-form');
         const statusContainer = document.getElementById('status-container');
@@ -80,7 +87,8 @@
                 method: 'POST',
                 body: formData,
                 headers: {
-                    'X-Requested-With': 'XMLHttpRequest'
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': csrfToken
                 }
             })
             .then(response => response.json())
@@ -120,9 +128,13 @@
         function checkStatus() {
             if (!jobId) return;
             
-            fetch(`{% url 'downloads:job_status' job_id=0 %}`.replace('0', jobId), {
+            // URL 구성
+            const statusUrl = JOB_STATUS_URL_BASE + jobId + '/';
+            
+            fetch(statusUrl, {
                 headers: {
-                    'X-Requested-With': 'XMLHttpRequest'
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': csrfToken
                 }
             })
             .then(response => response.json())
@@ -151,7 +163,7 @@
                         `;
                         
                         const downloadBtn = document.createElement('a');
-                        downloadBtn.href = `{% url 'downloads:download_file' file_id=0 %}`.replace('0', file.id);
+                        downloadBtn.href = DOWNLOAD_FILE_URL_BASE + file.id + '/';
                         downloadBtn.className = 'btn btn-sm btn-success';
                         downloadBtn.innerHTML = '<i class="fas fa-download"></i> 다운로드';
                         

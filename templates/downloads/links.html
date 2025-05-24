@@ -746,9 +746,11 @@
                                                 <button class="btn btn-sm btn-danger btn-cancel" data-job-id="{{ job.id }}">취소</button>
                                                 {% elif job.status == 'done' or job.status == 'completed' %}
                                                 {% for file in job.files.all %}
-                                                <a href="{% url 'downloads:download_file' file.id %}" class="btn btn-sm btn-success">
-                                                    <i class="fas fa-download"></i> 다운로드
-                                                </a>
+                                                    {% if file.id %}
+                                                    <a href="{% url 'downloads:download_file' file_id=file.id %}" class="btn btn-sm btn-success">
+                                                        <i class="fas fa-download"></i> 다운로드
+                                                    </a>
+                                                    {% endif %}
                                                 {% endfor %}
                                                 {% endif %}
                                             </div>
@@ -993,9 +995,11 @@
                                         
                                         <div>
                                             {% for file in job.files.all %}
-                                            <a href="{% url 'downloads:download_file' file.id %}" class="btn btn-sm btn-success">
-                                                <i class="fas fa-download"></i> 다운로드
-                                            </a>
+                                                {% if file.id %}
+                                                <a href="{% url 'downloads:download_file' file_id=file.id %}" class="btn btn-sm btn-success">
+                                                    <i class="fas fa-download"></i> 다운로드
+                                                </a>
+                                                {% endif %}
                                             {% endfor %}
                                         </div>
                                     </div>
@@ -2301,9 +2305,13 @@ $(document).ready(function() {
         if (downloadSection.length === 0 && job.files && job.files.length > 0) {
             let downloadHtml = '<div class="download-links mt-2"><small class="text-muted">다운로드:</small><br>';
             job.files.forEach(function(file) {
-                downloadHtml += `<a href="{% url 'downloads:download_file' file.id %}" class="btn btn-sm btn-outline-primary me-1 mt-1">
-                    <i class="fas fa-download"></i> ${file.filename}
-                </a>`;
+                if (file.id && file.id.trim() !== '') {
+                    // Django URL을 동적으로 생성
+                    const downloadUrl = `/downloads/file/${file.id}/`;
+                    downloadHtml += `<a href="${downloadUrl}" class="btn btn-sm btn-outline-primary me-1 mt-1">
+                        <i class="fas fa-download"></i> ${file.filename || 'Download'}
+                    </a>`;
+                }
             });
             downloadHtml += '</div>';
             jobCard.find('.card-body').append(downloadHtml);

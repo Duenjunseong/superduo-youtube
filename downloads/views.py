@@ -227,7 +227,7 @@ def job_status(request, job_id):
     files = []
     for file in job.files.all():
         files.append({
-            'id': file.id,
+            'id': str(file.id),
             'filename': file.filename,
             'file_size': file.file_size,
             'file_type': file.file_type
@@ -257,11 +257,15 @@ def download_list(request):
 @login_required
 def download_file(request, file_id):
     try:
-        # UUID 유효성 검사
-        try:
-            uuid.UUID(file_id)  # UUID 형식 검증
-        except ValueError:
-            logger.error(f"잘못된 UUID 형식: {file_id}")
+        # UUID 유효성 검사 - file_id가 이미 UUID 객체일 수 있음
+        if isinstance(file_id, str):
+            try:
+                uuid.UUID(file_id)  # 문자열인 경우에만 UUID 형식 검증
+            except ValueError:
+                logger.error(f"잘못된 UUID 형식: {file_id}")
+                return HttpResponse("잘못된 파일 ID입니다.", status=400)
+        elif not isinstance(file_id, uuid.UUID):
+            logger.error(f"잘못된 파일 ID 타입: {type(file_id)}")
             return HttpResponse("잘못된 파일 ID입니다.", status=400)
         
         file = get_object_or_404(File, id=file_id, job__user=request.user)
@@ -270,7 +274,6 @@ def download_file(request, file_id):
         logger.info(f"다운로드 요청 - File ID: {file_id}, User: {request.user.username}")
         logger.info(f"파일 정보 - filename: {file.filename}, file_path: {file.file_path}")
         logger.info(f"MEDIA_ROOT: {settings.MEDIA_ROOT}")
-        logger.info(f"USE_X_ACCEL_REDIRECT: {getattr(settings, 'USE_X_ACCEL_REDIRECT', False)}")
         
         # 파일 경로 정규화
         file_path = Path(file.file_path)
@@ -283,7 +286,7 @@ def download_file(request, file_id):
         # 파일 존재 확인
         if not file_path.exists():
             logger.error(f"파일이 존재하지 않음: {file_path}")
-            return HttpResponse(f"파일을 찾을 수 없습니다: {file_path}", status=404)
+            return HttpResponse(f"파일을 찾을 수 없습니다: {file.filename}", status=404)
         
         # 파일 읽기 권한 확인
         if not os.access(file_path, os.R_OK):
@@ -299,7 +302,7 @@ def download_file(request, file_id):
             return HttpResponse("파일이 비어있습니다.", status=400)
         
         # Content-Type 결정 (mimetypes 모듈 사용)
-        content_type, _ = mimetypes.guess_type(file.filename)
+        content_type, _ = mimetypes.guess_type(str(file_path))
         if not content_type:
             content_type = 'application/octet-stream'
         
@@ -318,8 +321,9 @@ def download_file(request, file_id):
                 logger.info(f"Internal URL: {internal_url}")
                 
                 response['X-Accel-Redirect'] = internal_url
-                response['Content-Disposition'] = f'attachment; filename="{file.filename}"'
+                response['Content-Disposition'] = f'attachment; filename*=UTF-8\'\'{file.filename}'
                 response['Content-Type'] = content_type
+                response['Content-Length'] = file_size
                 
                 return response
             except ValueError as e:
@@ -330,24 +334,32 @@ def download_file(request, file_id):
         logger.info("FileResponse 방식 사용")
         
         try:
-            # 파일을 바이너리 모드로 열기
-            file_handle = open(file_path, 'rb')
+            # 안전한 파일명 생성 (특수문자 처리)
+            safe_filename = file.filename.encode('utf-8').decode('ascii', errors='ignore')
+            if not safe_filename:
+                safe_filename = f"download_{file.id}"
             
+            # FileResponse 생성 - 파일 핸들 자동 관리
             response = FileResponse(
-                file_handle,
+                open(file_path, 'rb'),  # FileResponse가 자동으로 파일 핸들을 관리
+                content_type=content_type,
                 as_attachment=True,
-                filename=file.filename
+                filename=safe_filename
             )
             
+            # 추가 헤더 설정
             response['Content-Length'] = file_size
-            response['Content-Type'] = content_type
+            response['Content-Disposition'] = f'attachment; filename*=UTF-8\'\'{file.filename}'
             
-            # 캐시 헤더 추가
+            # 캐시 헤더 추가 (다운로드 파일은 캐시하지 않음)
             response['Cache-Control'] = 'no-cache, no-store, must-revalidate'
             response['Pragma'] = 'no-cache'
             response['Expires'] = '0'
             
-            logger.info(f"FileResponse 생성 완료 - Content-Length: {file_size}")
+            # Range 요청 지원을 위한 헤더
+            response['Accept-Ranges'] = 'bytes'
+            
+            logger.info(f"FileResponse 생성 완료 - Content-Length: {file_size}, Content-Type: {content_type}")
             return response
             
         except Exception as e:

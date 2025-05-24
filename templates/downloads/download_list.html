@@ -48,9 +48,13 @@
                                         <ul class="dropdown-menu">
                                             {% for file in job.files.all %}
                                             <li>
+                                                {% if file.id %}
                                                 <a class="dropdown-item" href="{% url 'downloads:download_file' file_id=file.id %}">
                                                     {{ file.filename }} ({{ file.file_size|filesizeformat }})
                                                 </a>
+                                                {% else %}
+                                                <span class="dropdown-item text-muted">파일 ID 없음</span>
+                                                {% endif %}
                                             </li>
                                             {% endfor %}
                                         </ul>
