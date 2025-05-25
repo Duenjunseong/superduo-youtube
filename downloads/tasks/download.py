@@ -290,15 +290,16 @@ def download_video(url, user_id):
         else:
             file_type = 'application/octet-stream'
         
-        # 파일 정보 저장 (영구 경로로)
+        # 파일 정보 저장 (상대 경로로 저장)
+        relative_file_path = os.path.relpath(permanent_file_path, media_root)
         file = File.objects.create(
             job=job,
             filename=permanent_filename,
-            file_path=permanent_file_path,
+            file_path=relative_file_path,  # 상대 경로로 저장
             file_size=file_size,
             file_type=file_type
         )
-        logger.info(f"파일 정보 저장: file_id={file.id}, path={permanent_file_path}")
+        logger.info(f"파일 정보 저장: file_id={file.id}, absolute_path={permanent_file_path}, relative_path={relative_file_path}")
         
         # 작업 완료 상태 업데이트
         job.status = 'completed'

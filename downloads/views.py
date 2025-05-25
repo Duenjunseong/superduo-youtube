@@ -275,34 +275,53 @@ def download_file(request, file_id):
         logger.info(f"파일 정보 - filename: {file.filename}, file_path: {file.file_path}")
         logger.info(f"MEDIA_ROOT: {settings.MEDIA_ROOT}")
         
-        # 파일 경로 정규화
+        # 파일 경로 정규화 - Docker 환경 고려
         file_path = Path(file.file_path)
-        if not file_path.is_absolute():
-            # 상대 경로인 경우 MEDIA_ROOT와 결합
-            file_path = Path(settings.MEDIA_ROOT) / file.file_path
         
-        logger.info(f"최종 파일 경로: {file_path}")
+        if file_path.is_absolute():
+            # 절대 경로인 경우 그대로 사용
+            final_file_path = file_path
+        else:
+            # 상대 경로인 경우 MEDIA_ROOT와 결합
+            final_file_path = Path(settings.MEDIA_ROOT) / file.file_path
+        
+        logger.info(f"최종 파일 경로: {final_file_path}")
         
         # 파일 존재 확인
-        if not file_path.exists():
-            logger.error(f"파일이 존재하지 않음: {file_path}")
-            return HttpResponse(f"파일을 찾을 수 없습니다: {file.filename}", status=404)
+        if not final_file_path.exists():
+            logger.error(f"파일이 존재하지 않음: {final_file_path}")
+            
+            # 다른 가능한 경로들도 확인 (디버깅용)
+            possible_paths = [
+                Path(settings.MEDIA_ROOT) / file.filename,
+                Path(settings.MEDIA_ROOT) / f'user_{file.job.user.id}' / file.filename,
+                Path(settings.MEDIA_ROOT) / f'user_{file.job.user.id}' / 'downloads' / file.filename,
+            ]
+            
+            for i, path in enumerate(possible_paths):
+                logger.info(f"가능한 경로 {i+1}: {path} - 존재여부: {path.exists()}")
+                if path.exists():
+                    logger.info(f"대체 경로 발견: {path}")
+                    final_file_path = path
+                    break
+            else:
+                return HttpResponse(f"파일을 찾을 수 없습니다: {file.filename}", status=404)
         
         # 파일 읽기 권한 확인
-        if not os.access(file_path, os.R_OK):
-            logger.error(f"파일 읽기 권한 없음: {file_path}")
+        if not os.access(final_file_path, os.R_OK):
+            logger.error(f"파일 읽기 권한 없음: {final_file_path}")
             return HttpResponse("파일에 대한 읽기 권한이 없습니다.", status=403)
         
         # 파일 크기 확인
-        file_size = file_path.stat().st_size
+        file_size = final_file_path.stat().st_size
         logger.info(f"파일 크기: {file_size} bytes")
         
         if file_size == 0:
-            logger.error(f"파일 크기가 0: {file_path}")
+            logger.error(f"파일 크기가 0: {final_file_path}")
             return HttpResponse("파일이 비어있습니다.", status=400)
         
         # Content-Type 결정 (mimetypes 모듈 사용)
-        content_type, _ = mimetypes.guess_type(str(file_path))
+        content_type, _ = mimetypes.guess_type(str(final_file_path))
         if not content_type:
             content_type = 'application/octet-stream'
         
@@ -316,7 +335,7 @@ def download_file(request, file_id):
             # 파일 경로를 nginx가 이해할 수 있는 형태로 변환
             media_root = Path(settings.MEDIA_ROOT)
             try:
-                relative_path = file_path.relative_to(media_root)
+                relative_path = final_file_path.relative_to(media_root)
                 internal_url = f"/protected-files/{relative_path}"
                 logger.info(f"Internal URL: {internal_url}")
                 
@@ -341,7 +360,7 @@ def download_file(request, file_id):
             
             # FileResponse 생성 - 파일 핸들 자동 관리
             response = FileResponse(
-                open(file_path, 'rb'),  # FileResponse가 자동으로 파일 핸들을 관리
+                open(final_file_path, 'rb'),  # FileResponse가 자동으로 파일 핸들을 관리
                 content_type=content_type,
                 as_attachment=True,
                 filename=safe_filename

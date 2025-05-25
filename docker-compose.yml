@@ -27,7 +27,7 @@ services:
   # Django 웹 애플리케이션
   web:
     build: .
-    user: '${USER_ID:-1000}:${GROUP_ID:-1000}'
+    user: '0:0'
     ports:
       - '8001:8001'
     environment:
@@ -35,6 +35,7 @@ services:
       - SECRET_KEY=ABE194DEC1A343D7FB0CDB05600ACCC57CFA4BEB64DCDDA3A53DDE2562EDB9B3
       - DATABASE_URL=postgres://superduo:superduo123@db:5432/superduo_youtube
       - REDIS_URL=redis://redis:6379/0
+      - MEDIA_ROOT=/app/media
     volumes:
       - ./data/media:/app/media
       - ./data/static:/app/staticfiles
@@ -49,18 +50,21 @@ services:
       sh -c "
         echo 'Waiting for database...' &&
         sleep 15 &&
+        python manage.py migrate &&
+        python manage.py collectstatic --noinput &&
         gunicorn --config gunicorn.conf.py config.wsgi:application
       "
 
   # Celery 워커
   celery:
     build: .
-    user: '${USER_ID:-1000}:${GROUP_ID:-1000}'
+    user: '0:0'
     environment:
       - DEBUG=False
       - SECRET_KEY=ABE194DEC1A343D7FB0CDB05600ACCC57CFA4BEB64DCDDA3A53DDE2562EDB9B3
       - DATABASE_URL=postgres://superduo:superduo123@db:5432/superduo_youtube
       - REDIS_URL=redis://redis:6379/0
+      - MEDIA_ROOT=/app/media
     volumes:
       - ./data/media:/app/media
       - ./logs:/app/logs

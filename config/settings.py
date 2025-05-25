@@ -147,7 +147,8 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # Media files
 MEDIA_URL = '/media/'
-MEDIA_ROOT = os.path.join(BASE_DIR, 'data', 'media')
+# Docker 환경과 로컬 환경 모두 지원
+MEDIA_ROOT = config('MEDIA_ROOT', default=os.path.join(BASE_DIR, 'data', 'media'))
 USE_X_ACCEL_REDIRECT=False
 
 # Default primary key field type
