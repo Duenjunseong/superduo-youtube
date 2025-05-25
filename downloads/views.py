@@ -152,8 +152,8 @@ class LinksView(LoginRequiredMixin, TemplateView):
                         tags = Tag.objects.filter(id__in=tag_ids, user=request.user)
                         job.tags.add(*tags)
                     
-                    # Celery 작업 시작
-                    task = download_video.delay(url, request.user.id)
+                    # Celery 작업 시작 - job.id와 url을 전달
+                    task = download_video.delay(str(job.id), url) # job.id를 문자열로 변환하여 전달
                     
                     # 작업 ID 업데이트
                     job.task_id = task.id

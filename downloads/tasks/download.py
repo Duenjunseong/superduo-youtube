@@ -50,19 +50,19 @@ def ensure_yt_dlp():
             return False
 
 @shared_task
-def download_video(url, user_id):
+def download_video(job_id, url):
     """
     YouTube 동영상 다운로드 작업
     """
     job = None
+    user_id_from_job = None # user_id를 job 객체에서 가져오기 위함
     try:
-        logger.info(f"다운로드 작업 시작: URL={url}, User ID={user_id}")
-        logger.info(f"URL type: {type(url)}, User ID type: {type(user_id)}")
+        logger.info(f"다운로드 작업 시작: Job ID={job_id}, URL={url}")
         
-        # 작업 상태 업데이트
-        user = User.objects.get(id=user_id)
-        job = Job.objects.get(url=url, user=user, status='pending')
-        logger.info(f"작업 찾음: Job ID={job.id}")
+        # job_id를 사용하여 Job 객체 조회
+        job = Job.objects.get(id=job_id)
+        user_id_from_job = job.user.id # Job 객체에서 사용자 ID 가져오기
+        logger.info(f"작업 찾음: Job ID={job.id}, User ID={user_id_from_job}")
         
         # 1%로 먼저 시작
         job.status = 'processing'
@@ -99,7 +99,7 @@ def download_video(url, user_id):
         # 다운로드할 디렉토리 생성
         media_root = settings.MEDIA_ROOT
         logger.info(f"MEDIA_ROOT: {media_root}, type: {type(media_root)}")
-        user_dir = os.path.join(media_root, f'user_{user_id}')
+        user_dir = os.path.join(media_root, f'user_{user_id_from_job}')
         logger.info(f"User directory: {user_dir}, type: {type(user_dir)}")
         os.makedirs(user_dir, exist_ok=True)
         logger.info(f"사용자 디렉토리 생성: {user_dir}")
@@ -261,7 +261,7 @@ def download_video(url, user_id):
         logger.info(f"임시 파일 다운로드 완료: {temp_file_path}, 크기: {file_size} bytes")
         
         # 영구 저장소로 파일 이동
-        permanent_dir = os.path.join(media_root, f'user_{user_id}', 'downloads')
+        permanent_dir = os.path.join(media_root, f'user_{user_id_from_job}', 'downloads')
         os.makedirs(permanent_dir, exist_ok=True)
         
         # 파일명에 타임스탬프 추가하여 중복 방지
