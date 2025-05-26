@@ -149,7 +149,11 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 MEDIA_URL = '/media/'
 # Docker 환경과 로컬 환경 모두 지원
 MEDIA_ROOT = config('MEDIA_ROOT', default=os.path.join(BASE_DIR, 'data', 'media'))
-USE_X_ACCEL_REDIRECT=False
+
+if DEBUG:
+    USE_X_ACCEL_REDIRECT=False
+else:
+    USE_X_ACCEL_REDIRECT=True
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field
