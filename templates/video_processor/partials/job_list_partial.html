@@ -64,50 +64,58 @@
                         {% endif %}
                     </div>
                     <div class="card-footer bg-white py-2 px-3 job-actions border-top-0">
-                        <a href="{% url 'video_processor:job_status' job_id=job.job_id %}" class="btn btn-sm btn-outline-primary">
-                            <i class="fas fa-eye me-1"></i>상세보기
-                        </a>
-                        <div>
-                            {% comment %} 상태가 PENDING이고 그룹이 없으며 auto_start가 False인 경우 시작 버튼 표시 {% endcomment %}
-                            {% if job.status == 'PENDING' and not job.group and not job.auto_start %}
-                                <button class="btn btn-sm btn-success me-1 start-job-btn" 
-                                        data-job-id="{{ job.job_id }}" 
-                                        title="작업 시작">
-                                    <i class="fas fa-play"></i> 시작
-                                </button>
-                            {% endif %}
+                        <div class="d-flex justify-content-between align-items-center flex-wrap gap-1">
+                            <a href="{% url 'video_processor:job_status' job_id=job.job_id %}" class="btn btn-sm btn-outline-primary">
+                                <i class="fas fa-eye me-1"></i><span class="d-none d-md-inline">상세</span>
+                            </a>
                             
-                            {% comment %} 재처리 버튼 - FAILED 상태일 때 활성화 {% endcomment %}
-                            {% if job.status == 'FAILED' %}
-                                <form method="post" action="{% url 'video_processor:job_retry' job_id=job.job_id %}" class="d-inline">
-                                    {% csrf_token %}
-                                    <button type="submit" class="btn btn-sm btn-outline-secondary me-1" 
-                                            title="재처리" 
-                                            onclick="return confirm('이 작업을 다시 시작하시겠습니까?');">
-                                        <i class="fas fa-redo"></i>
+                            <div class="d-flex gap-1 flex-wrap">
+                                {% comment %} 완료된 작업에 압축 다운로드 버튼 추가 {% endcomment %}
+                                {% if job.status == 'COMPLETED' and job.segments.all %}
+                                    <a href="{% url 'video_processor:job_download_zip' job_id=job.job_id %}" 
+                                       class="btn btn-sm btn-success" 
+                                       title="모든 세그먼트 압축 다운로드">
+                                        <i class="fas fa-file-archive"></i><span class="d-none d-lg-inline ms-1">압축</span>
+                                    </a>
+                                {% endif %}
+                                
+                                {% comment %} 상태가 PENDING이고 그룹이 없으며 auto_start가 False인 경우 시작 버튼 표시 {% endcomment %}
+                                {% if job.status == 'PENDING' and not job.group and not job.auto_start %}
+                                    <button class="btn btn-sm btn-success start-job-btn" 
+                                            data-job-id="{{ job.job_id }}" 
+                                            title="작업 시작">
+                                        <i class="fas fa-play"></i><span class="d-none d-lg-inline ms-1">시작</span>
                                     </button>
-                                </form>
-                            {% else %}
-                                <button class="btn btn-sm btn-outline-secondary me-1" disabled title="재처리 (실패한 작업만 가능)">
-                                    <i class="fas fa-redo"></i>
-                                </button>
-                            {% endif %}
-                            
-                            {% comment %} 삭제 버튼 - 처리 중이 아닐 때 활성화 {% endcomment %}
-                            {% if job.status != 'PROCESSING' and job.status != 'DOWNLOADING' %}
-                                <form method="post" action="{% url 'video_processor:job_delete' job_id=job.job_id %}" class="d-inline">
-                                    {% csrf_token %}
-                                    <button type="submit" class="btn btn-sm btn-outline-danger" 
-                                            title="삭제" 
-                                            onclick="return confirm('이 작업을 삭제하시겠습니까? 관련 파일도 함께 삭제됩니다.');">
-                                        <i class="fas fa-trash"></i>
+                                {% endif %}
+                                
+                                {% comment %} 재처리 버튼 - FAILED 상태일 때 활성화 {% endcomment %}
+                                {% if job.status == 'FAILED' %}
+                                    <form method="post" action="{% url 'video_processor:job_retry' job_id=job.job_id %}" class="d-inline">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-sm btn-outline-secondary" 
+                                                title="재처리" 
+                                                onclick="return confirm('이 작업을 다시 시작하시겠습니까?');">
+                                            <i class="fas fa-redo"></i><span class="d-none d-xl-inline ms-1">재시도</span>
+                                        </button>
+                                    </form>
+                                {% endif %}
+                                
+                                {% comment %} 삭제 버튼 - 처리 중이 아닐 때 활성화 {% endcomment %}
+                                {% if job.status != 'PROCESSING' and job.status != 'DOWNLOADING' %}
+                                    <form method="post" action="{% url 'video_processor:job_delete' job_id=job.job_id %}" class="d-inline">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-sm btn-outline-danger" 
+                                                title="삭제" 
+                                                onclick="return confirm('이 작업을 삭제하시겠습니까? 관련 파일도 함께 삭제됩니다.');">
+                                            <i class="fas fa-trash"></i><span class="d-none d-xl-inline ms-1">삭제</span>
+                                        </button>
+                                    </form>
+                                {% else %}
+                                    <button class="btn btn-sm btn-outline-danger" disabled title="삭제 (처리 중인 작업은 삭제 불가)">
+                                        <i class="fas fa-trash"></i><span class="d-none d-xl-inline ms-1">삭제</span>
                                     </button>
-                                </form>
-                            {% else %}
-                                <button class="btn btn-sm btn-outline-danger" disabled title="삭제 (처리 중인 작업은 삭제 불가)">
-                                    <i class="fas fa-trash"></i>
-                                </button>
-                            {% endif %}
+                                {% endif %}
+                            </div>
                         </div>
                     </div>
                 </div>

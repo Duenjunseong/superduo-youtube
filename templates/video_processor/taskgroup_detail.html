@@ -14,17 +14,23 @@
 
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h2>그룹: <span class="fw-bold">{{ group.name }}</span></h2>
-        <div>
+        <div class="d-flex flex-wrap gap-2">
             {% comment %} <a href="#" class="btn btn-sm btn-outline-secondary">그룹 수정</a> (추후 구현) {% endcomment %}
             {% if pending_jobs_count > 0 %}
-                <form method="post" action="{% url 'video_processor:group_batch_start' group_id=group.group_id %}" class="d-inline me-2">
+                <form method="post" action="{% url 'video_processor:group_batch_start' group_id=group.group_id %}" class="d-inline">
                     {% csrf_token %}
                     <button type="submit" class="btn btn-warning" onclick="return confirm('대기 중인 {{ pending_jobs_count }}개 작업을 모두 시작하시겠습니까?');">
-                        <i class="fas fa-play-circle me-1"></i>일괄 처리 시작 ({{ pending_jobs_count }}개)
+                        <i class="fas fa-play-circle me-1"></i><span class="d-none d-md-inline">일괄 처리 시작 ({{ pending_jobs_count }}개)</span><span class="d-md-none">시작({{ pending_jobs_count }})</span>
                     </button>
                 </form>
             {% endif %}
-            <a href="{% url 'video_processor:job_submit_to_group' group_id=group.group_id %}" class="btn btn-primary">이 그룹에 새 작업 추가</a>
+            <a href="{% url 'video_processor:group_download_zip' group_id=group.group_id %}" 
+               class="btn btn-success">
+                <i class="fas fa-file-archive me-1"></i><span class="d-none d-lg-inline">그룹 전체 압축 다운로드</span><span class="d-lg-none">압축받기</span>
+            </a>
+            <a href="{% url 'video_processor:job_submit_to_group' group_id=group.group_id %}" class="btn btn-primary">
+                <i class="fas fa-plus me-1"></i><span class="d-none d-md-inline">이 그룹에 새 작업 추가</span><span class="d-md-none">작업 추가</span>
+            </a>
         </div>
     </div>
     <p class="text-muted">{{ group.description|default:"설명 없음" }}</p>
@@ -107,8 +113,34 @@
                                 <div class="invalid-feedback d-block">{{ error }}</div>
                             {% endfor %}
                         </div>
+                    {% elif field.name == 'download_full_video' %}
+                        <div class="mb-3">
+                            <div class="form-check">
+                                {% render_field field class+="form-check-input" %}
+                                <label for="{{ field.id_for_label }}" class="form-check-label fw-bold">
+                                    {{ field.label }}
+                                </label>
+                                {% if field.help_text %}
+                                    <div class="form-text small">{{ field.help_text|safe }}</div>
+                                {% endif %}
+                                {% for error in field.errors %}
+                                    <div class="invalid-feedback d-block">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    {% elif field.name == 'full_video_prefix' %}
+                        <div class="mb-2" id="group-full-video-prefix-container" style="display: none;">
+                            <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+                            {% render_field field class+="form-control" %}
+                            {% if field.help_text %}
+                                <div class="form-text small">{{ field.help_text|safe }}</div>
+                            {% endif %}
+                            {% for error in field.errors %}
+                                <div class="invalid-feedback d-block">{{ error }}</div>
+                            {% endfor %}
+                        </div>
                     {% elif field.name == 'segments_input' %}
-                        <div class="mb-2">
+                        <div class="mb-2" id="group-segments-input-container">
                             <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
                             {% render_field field class+="form-control" rows="4" placeholder="0:10-0:30 intro" %}
                             {% if field.help_text %}
@@ -173,4 +205,45 @@
     </div>
 
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // 그룹 상세 페이지의 전체 파일 다운로드 체크박스 이벤트 처리
+    const groupDownloadFullVideoCheckbox = document.querySelector('input[name="download_full_video"]');
+    const groupSegmentsInputContainer = document.getElementById('group-segments-input-container');
+    const groupFullVideoPrefixContainer = document.getElementById('group-full-video-prefix-container');
+    const groupSegmentsInput = document.querySelector('textarea[name="segments_input"]');
+    
+    if (groupDownloadFullVideoCheckbox && groupSegmentsInputContainer && groupFullVideoPrefixContainer) {
+        function toggleGroupFields() {
+            const isFullVideoChecked = groupDownloadFullVideoCheckbox.checked;
+            
+            if (isFullVideoChecked) {
+                // 전체 파일 다운로드 체크 시
+                groupSegmentsInputContainer.style.display = 'none';
+                groupFullVideoPrefixContainer.style.display = 'block';
+                if (groupSegmentsInput) {
+                    groupSegmentsInput.disabled = true;
+                    groupSegmentsInput.value = ''; // 세그먼트 입력 초기화
+                }
+            } else {
+                // 전체 파일 다운로드 체크 해제 시
+                groupSegmentsInputContainer.style.display = 'block';
+                groupFullVideoPrefixContainer.style.display = 'none';
+                if (groupSegmentsInput) {
+                    groupSegmentsInput.disabled = false;
+                }
+            }
+        }
+        
+        // 초기 상태 설정
+        toggleGroupFields();
+        
+        // 체크박스 변경 이벤트 리스너
+        groupDownloadFullVideoCheckbox.addEventListener('change', toggleGroupFields);
+    }
+});
+</script>
 {% endblock %} 

@@ -60,6 +60,22 @@
 
     <h4>처리된 구간 목록</h4>
     {% if segments %}
+        {% comment %} 완료된 세그먼트 수 계산 {% endcomment %}
+        {% regroup segments by status as segments_by_status %}
+        {% for status_group in segments_by_status %}
+            {% if status_group.grouper == 'COMPLETED' %}
+                {% if status_group.list|length >= 2 %}
+                    <div class="mb-3">
+                        <a href="{% url 'video_processor:job_download_zip' job_id=job.job_id %}" 
+                           class="btn btn-success">
+                            <i class="fas fa-file-archive me-2"></i><span class="d-none d-md-inline">모든 세그먼트 압축 다운로드</span><span class="d-md-none">압축 다운로드</span>
+                        </a>
+                        <small class="text-muted ms-2 d-none d-md-inline">완료된 {{ status_group.list|length }}개 세그먼트를 ZIP 파일로 다운로드</small>
+                    </div>
+                {% endif %}
+            {% endif %}
+        {% endfor %}
+        
         <div class="table-responsive">
             <table class="table table-striped table-hover">
                 <thead class="table-light">
@@ -79,7 +95,13 @@
                         <td>{{ forloop.counter }}</td>
                         <td>{{ segment.output_filename_prefix|default:"N/A" }}</td>
                         <td>{{ segment.start_time }}</td>
-                        <td>{{ segment.end_time }}</td>
+                        <td>
+                            {% if segment.end_time == -1 %}
+                                전체 파일
+                            {% else %}
+                                {{ segment.end_time }}
+                            {% endif %}
+                        </td>
                         <td>
                             <span class="badge 
                                 {% if segment.status == 'COMPLETED' %}bg-success
@@ -116,30 +138,34 @@
         <form method="post" action="{% url 'video_processor:job_retry' job_id=job.job_id %}" class="d-inline">
             {% csrf_token %}
             <button type="submit" class="btn btn-warning" onclick="return confirm('이 작업을 재시도하시겠습니까?');">
-                <i class="fas fa-redo me-2"></i>작업 재시도
+                <i class="fas fa-redo me-2"></i><span class="d-none d-sm-inline">작업 재시도</span><span class="d-sm-none">재시도</span>
             </button>
         </form>
     </div>
     {% endif %}
 
-    <div class="mt-4">
-        <a href="{% url 'video_processor:job_submit' %}" class="btn btn-secondary">새 작업 요청</a>
-        <button type="button" class="btn btn-info ms-2" onclick="window.location.reload();">새로고침</button> {% comment %} 페이지 자동 새로고침 기능은 추후 JS로 구현 가능 {% endcomment %}
+    <div class="mt-4 d-flex flex-wrap gap-2">
+        <a href="{% url 'video_processor:job_submit' %}" class="btn btn-secondary">
+            <i class="fas fa-plus me-1"></i><span class="d-none d-md-inline">새 작업 요청</span><span class="d-md-none">새 작업</span>
+        </a>
+        <button type="button" class="btn btn-info" onclick="window.location.reload();">
+            <i class="fas fa-sync me-1"></i><span class="d-none d-md-inline">새로고침</span><span class="d-md-none">새로고침</span>
+        </button>
         {% if job.group %}
-            <a href="{% url 'video_processor:group_detail' group_id=job.group.pk %}" class="btn btn-outline-primary ms-2">
-                <i class="fas fa-list me-2"></i>그룹 내 작업 목록
+            <a href="{% url 'video_processor:group_detail' group_id=job.group.pk %}" class="btn btn-outline-primary">
+                <i class="fas fa-list me-1"></i><span class="d-none d-lg-inline">그룹 내 작업 목록</span><span class="d-lg-none">그룹 목록</span>
             </a>
         {% else %}
-            <a href="{% url 'core:dashboard' %}" class="btn btn-outline-primary ms-2">
-                <i class="fas fa-list me-2"></i>전체 작업 목록
+            <a href="{% url 'core:dashboard' %}" class="btn btn-outline-primary">
+                <i class="fas fa-list me-1"></i><span class="d-none d-lg-inline">전체 작업 목록</span><span class="d-lg-none">작업 목록</span>
             </a>
         {% endif %}
         
         {# 작업 삭제 버튼 #}
-        <form method="post" action="{% url 'video_processor:job_delete' job_id=job.job_id %}" class="d-inline ms-2">
+        <form method="post" action="{% url 'video_processor:job_delete' job_id=job.job_id %}" class="d-inline">
             {% csrf_token %}
             <button type="submit" class="btn btn-danger" onclick="return confirm('이 작업을 완전히 삭제하시겠습니까? 관련된 모든 데이터가 삭제되며 복구할 수 없습니다.');">
-                <i class="fas fa-trash me-2"></i>작업 삭제
+                <i class="fas fa-trash me-1"></i><span class="d-none d-md-inline">작업 삭제</span><span class="d-md-none">삭제</span>
             </button>
         </form>
     </div>

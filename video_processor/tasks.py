@@ -75,26 +75,49 @@ def download_and_process_video_task(self, job_id):
             logger.info(f"[{job_id}] 세그먼트 처리 시작: {segment.segment_id}")
             
             output_segments_dir = Path(settings.MEDIA_ROOT) / 'processed_segments' / str(job.job_id)
+            output_segments_dir.mkdir(parents=True, exist_ok=True)
+            
             # output_filename_prefix가 있으면 사용, 없으면 segment_id 사용
             filename_stem = segment.output_filename_prefix if segment.output_filename_prefix else str(segment.segment_id)
             
-            success, processed_path = split_video_segment(
-                original_video_path=downloaded_file_path, 
-                output_directory=output_segments_dir,
-                output_filename_stem=filename_stem,
-                start_seconds=float(segment.start_time),
-                end_seconds=float(segment.end_time),
-                video_suffix=video_suffix # 원본 영상의 실제 확장자 전달
-            )
-            
-            if success and processed_path:
-                segment.processed_file_path = str(processed_path.relative_to(settings.MEDIA_ROOT))
-                segment.status = 'COMPLETED'
-                logger.info(f"[{job_id}] 세그먼트 처리 완료: {segment.segment_id} -> {segment.processed_file_path}")
+            # 전체 파일 다운로드인지 확인 (end_time이 -1인 경우)
+            if segment.end_time == -1:
+                # 전체 파일 복사
+                output_filename = f"{sanitize_filename(filename_stem)}{video_suffix}"
+                output_path = output_segments_dir / output_filename
+                
+                try:
+                    # 원본 파일을 출력 디렉토리로 복사
+                    import shutil
+                    shutil.copy2(downloaded_file_path, output_path)
+                    
+                    segment.processed_file_path = str(output_path.relative_to(settings.MEDIA_ROOT))
+                    segment.status = 'COMPLETED'
+                    logger.info(f"[{job_id}] 전체 파일 복사 완료: {segment.segment_id} -> {segment.processed_file_path}")
+                except Exception as e:
+                    segment.status = 'FAILED'
+                    all_segments_processed_successfully = False
+                    logger.error(f"[{job_id}] 전체 파일 복사 실패: {segment.segment_id}, 오류: {e}")
             else:
-                segment.status = 'FAILED'
-                all_segments_processed_successfully = False
-                logger.error(f"[{job_id}] 세그먼트 처리 실패: {segment.segment_id}")
+                # 기존 세그먼트 분할 로직
+                success, processed_path = split_video_segment(
+                    original_video_path=downloaded_file_path, 
+                    output_directory=output_segments_dir,
+                    output_filename_stem=filename_stem,
+                    start_seconds=float(segment.start_time),
+                    end_seconds=float(segment.end_time),
+                    video_suffix=video_suffix # 원본 영상의 실제 확장자 전달
+                )
+                
+                if success and processed_path:
+                    segment.processed_file_path = str(processed_path.relative_to(settings.MEDIA_ROOT))
+                    segment.status = 'COMPLETED'
+                    logger.info(f"[{job_id}] 세그먼트 처리 완료: {segment.segment_id} -> {segment.processed_file_path}")
+                else:
+                    segment.status = 'FAILED'
+                    all_segments_processed_successfully = False
+                    logger.error(f"[{job_id}] 세그먼트 처리 실패: {segment.segment_id}")
+            
             segment.save()
 
         if all_segments_processed_successfully:

@@ -27,13 +27,43 @@ class JobAndSegmentForm(forms.Form):
         label='유튜브 URL',
         widget=forms.URLInput(attrs={'class': 'form-control', 'placeholder': 'https://www.youtube.com/watch?v=...'})
     )
+    
+    # 전체 파일 다운로드 옵션
+    download_full_video = forms.BooleanField(
+        label='전체 파일 가져오기',
+        required=False,
+        initial=False,
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input', 'id': 'id_download_full_video'}),
+        help_text='체크하면 전체 영상을 다운로드합니다. 세그먼트 구간 설정은 무시됩니다.'
+    )
+    
+    # 전체 파일 다운로드 시 사용할 파일명 접두사
+    full_video_prefix = forms.CharField(
+        label='전체 파일 접두사',
+        required=False,
+        max_length=100,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control', 
+            'placeholder': '예: full_video',
+            'id': 'id_full_video_prefix',
+            'value': 'VIDEO-',
+        }),
+        help_text='전체 파일 다운로드 시 사용할 파일명 접두사를 입력하세요.'
+    )
+    
     # 각 줄에 "HH:MM:SS-HH:MM:SS [선택적_파일ID]" 형식으로 입력
     # 예: 
     # 00:01:10-00:01:45 intro_부분
     # 00:05:00-00:05:30 중요한_내용
     segments_input = forms.CharField(
         label='구간 정보 (시작시간-종료시간 [결과ID]) - 한 줄에 하나씩',
-        widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 4, 'placeholder': '00:00:10-00:00:25 segment1\n00:01:00-00:01:15 segment2'}),
+        required=False,  # 전체 파일 다운로드 시에는 필수가 아님
+        widget=forms.Textarea(attrs={
+            'class': 'form-control', 
+            'rows': 4, 
+            'placeholder': '00:00:10-00:00:25 segment1\n00:01:00-00:01:15 segment2',
+            'id': 'id_segments_input'
+        }),
         help_text='예시: 00:00:10-00:00:25 영상부분A (결과ID는 선택 사항이며, 공백으로 구분합니다.)'
     )
     tags_input = forms.CharField(
@@ -45,7 +75,7 @@ class JobAndSegmentForm(forms.Form):
     auto_start = forms.BooleanField(
         label='작업 즉시 시작',
         required=False,
-        initial=True,  # 기본값: 즉시 시작
+        initial=False,  # 기본값: 즉시 시작
         widget=forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         help_text='체크 해제 시 작업을 대기 상태로 추가합니다. 나중에 일괄 처리로 시작할 수 있습니다.'
     )
@@ -55,6 +85,24 @@ class JobAndSegmentForm(forms.Form):
         super().__init__(*args, **kwargs)
         if user:
             self.fields['group'].queryset = TaskGroup.objects.filter(user=user, status='ACTIVE')
+
+    def clean(self):
+        cleaned_data = super().clean()
+        download_full_video = cleaned_data.get('download_full_video')
+        segments_input = cleaned_data.get('segments_input')
+        
+        # 전체 파일 다운로드가 체크되지 않았고, 세그먼트 입력도 없는 경우
+        if not download_full_video and not segments_input:
+            raise forms.ValidationError(
+                "전체 파일 가져오기를 체크하거나 구간 정보를 입력해야 합니다."
+            )
+        
+        # 전체 파일 다운로드가 체크되었지만 세그먼트 입력도 있는 경우 (경고)
+        if download_full_video and segments_input and segments_input.strip():
+            # 세그먼트 입력을 무시한다는 것을 명시
+            cleaned_data['segments_input'] = ''
+        
+        return cleaned_data
 
 # 기존 DownloadAndSplitForm은 JobAndSegmentForm으로 대체되었으므로 주석 처리 또는 삭제
 # class DownloadAndSplitForm(forms.Form):

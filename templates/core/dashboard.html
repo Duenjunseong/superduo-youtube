@@ -56,12 +56,37 @@
         justify-content: space-between;
         align-items: center;
         margin-bottom: 1rem;
+        gap: 10px;
     }
     .job-cards-container .col {
         display: flex; /* 카드 높이 동일하게 맞추기 위해 flex 사용 */
     }
     .job-card {
         width: 100%; /* col 내부에서 카드가 꽉 차도록 */
+    }
+    
+    /* 작업 카드 버튼 개선 */
+    .job-actions .btn-sm {
+        min-width: 32px; /* 최소 너비 설정으로 아이콘만 있을 때도 일정한 크기 유지 */
+        white-space: nowrap; /* 텍스트 줄바꿈 방지 */
+    }
+    
+    /* 최근 작업 목록 버튼 개선 */
+    .recent-jobs-list .btn-group-vertical .btn,
+    .recent-jobs-list .btn-group .btn {
+        min-width: 28px;
+        white-space: nowrap;
+    }
+    
+    /* 작은 화면에서 버튼 간격 조정 */
+    @media (max-width: 768px) {
+        .job-actions {
+            gap: 5px;
+        }
+        .job-actions .btn-sm {
+            padding: 0.25rem 0.4rem;
+            font-size: 0.75rem;
+        }
     }
     #status-filter-dropdown .dropdown-item.active {
         font-weight: bold;
@@ -166,7 +191,27 @@
                                 </div>
                                 {% endif %}
                                 
-                                <div class="mb-2">
+                                <div class="mb-3">
+                                    <div class="form-check">
+                                        {% render_field form.download_full_video class+="form-check-input" %}
+                                        <label for="{{ form.download_full_video.id_for_label }}" class="form-check-label fw-bold">
+                                            {{ form.download_full_video.label }}
+                                        </label>
+                                        {% if form.download_full_video.help_text %}
+                                            <div class="form-text">{{ form.download_full_video.help_text|safe }}</div>
+                                        {% endif %}
+                                        <div class="invalid-feedback d-block" id="error-download_full_video"></div>
+                                    </div>
+                                </div>
+
+                                <div class="mb-2" id="full-video-prefix-container" style="display: none;">
+                                    <label for="{{ form.full_video_prefix.id_for_label }}" class="form-label">{{ form.full_video_prefix.label }}</label>
+                                    {% render_field form.full_video_prefix class+="form-control" %}
+                                    {% if form.full_video_prefix.help_text %}<div class="form-text">{{ form.full_video_prefix.help_text|safe }}</div>{% endif %}
+                                    <div class="invalid-feedback d-block" id="error-full_video_prefix"></div>
+                                </div>
+                                
+                                <div class="mb-2" id="segments-input-container">
                                     <label for="{{ form.segments_input.id_for_label }}" class="form-label fw-bold">{{ form.segments_input.label }}</label>
                                     {% render_field form.segments_input class+="form-control" rows="5" %}
                                     {% if form.segments_input.help_text %}<div class="form-text">{{ form.segments_input.help_text|safe }}</div>{% endif %}
@@ -452,6 +497,37 @@ document.addEventListener('DOMContentLoaded', function () {
     // --- 작업 제출 폼 처리 ---
     const jobSubmitForm = document.getElementById('jobSubmitForm');
     if (jobSubmitForm) {
+        // 전체 파일 다운로드 체크박스 이벤트 처리
+        const downloadFullVideoCheckbox = document.getElementById('id_download_full_video');
+        const segmentsInputContainer = document.getElementById('segments-input-container');
+        const fullVideoPrefixContainer = document.getElementById('full-video-prefix-container');
+        const segmentsInput = document.getElementById('id_segments_input');
+        
+        if (downloadFullVideoCheckbox && segmentsInputContainer && fullVideoPrefixContainer) {
+            function toggleFields() {
+                const isFullVideoChecked = downloadFullVideoCheckbox.checked;
+                
+                if (isFullVideoChecked) {
+                    // 전체 파일 다운로드 체크 시
+                    segmentsInputContainer.style.display = 'none';
+                    fullVideoPrefixContainer.style.display = 'block';
+                    segmentsInput.disabled = true;
+                    segmentsInput.value = ''; // 세그먼트 입력 초기화
+                } else {
+                    // 전체 파일 다운로드 체크 해제 시
+                    segmentsInputContainer.style.display = 'block';
+                    fullVideoPrefixContainer.style.display = 'none';
+                    segmentsInput.disabled = false;
+                }
+            }
+            
+            // 초기 상태 설정
+            toggleFields();
+            
+            // 체크박스 변경 이벤트 리스너
+            downloadFullVideoCheckbox.addEventListener('change', toggleFields);
+        }
+        
         jobSubmitForm.addEventListener('submit', function(event) {
             event.preventDefault();
             setLoading(jobSubmitForm, true);

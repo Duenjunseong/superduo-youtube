@@ -15,11 +15,17 @@ from taggit.models import Tag # Tag 모델 임포트
 from django.db import transaction # 추가
 from django.utils import timezone
 from datetime import timedelta
+import zipfile
+import os
+import tempfile
+import logging
 
 from .forms import TaskGroupForm, JobAndSegmentForm
 from .models import ProcessingJob, VideoSegment, TaskGroup
 from .tasks import download_and_process_video_task
 from .utils import parse_time_range, time_to_seconds, get_youtube_video_title # 폼에서 입력받은 구간 문자열 파싱용
+
+logger = logging.getLogger(__name__)
 
 class TaskGroupListView(LoginRequiredMixin, ListView):
     model = TaskGroup
@@ -116,20 +122,11 @@ class JobSubmitView(LoginRequiredMixin, View):
             selected_group_from_form = form.cleaned_data.get('group')
             tags_input_str = form.cleaned_data.get('tags_input', '')
             auto_start = form.cleaned_data.get('auto_start', True)
+            download_full_video = form.cleaned_data.get('download_full_video', False)
+            full_video_prefix = form.cleaned_data.get('full_video_prefix', '')
 
             target_group = current_group_object or selected_group_from_form
             
-            segment_lines = segments_input.strip().split('\n')
-            # 입력된 세그먼트 라인 수 자체에 대한 제한 (실제 유효 세그먼트 수는 아래에서 계산)
-            if len(segment_lines) > self.MAX_SEGMENTS_PER_JOB:
-                error_message = f"한 번에 최대 {self.MAX_SEGMENTS_PER_JOB}개의 구간 정보만 제출할 수 있습니다."
-                if is_ajax:
-                    return JsonResponse({'success': False, 'message': error_message})
-                else:
-                    messages.error(request, error_message)
-                    context = {'form': form, 'group_id': group_id, 'current_group_object': current_group_object}
-                    return render(request, self.template_name, context)
-
             try:
                 with transaction.atomic(): # 트랜잭션 시작
                     # YouTube 제목 가져오기
@@ -148,60 +145,81 @@ class JobSubmitView(LoginRequiredMixin, View):
                         if tag_names:
                             job.tags.add(*tag_names)
                     
-                    # 실제 유효한 세그먼트 정보가 있는지 확인 (모든 줄이 비어있거나 공백인지)
-                    if not segment_lines or not any(line.strip() for line in segment_lines):
-                        raise ValueError("구간 정보가 최소 한 개 이상 필요합니다.") 
-                    
-                    num_segments_created = 0
-                    parse_errors = []
-                    for line_number, line in enumerate(segment_lines, 1):
-                        line = line.strip()
-                        if not line: continue
+                    if download_full_video:
+                        # 전체 파일 다운로드: 더미 세그먼트 생성 (전체 영상을 나타냄)
+                        VideoSegment.objects.create(
+                            job=job,
+                            start_time=0,  # 시작: 0초
+                            end_time=-1,   # 끝: -1은 전체 영상을 의미하는 특별한 값
+                            output_filename_prefix=full_video_prefix or 'full_video'
+                        )
+                        num_segments_created = 1
+                    else:
+                        # 기존 세그먼트 처리 로직
+                        segment_lines = segments_input.strip().split('\n')
+                        # 입력된 세그먼트 라인 수 자체에 대한 제한 (실제 유효 세그먼트 수는 아래에서 계산)
+                        if len(segment_lines) > self.MAX_SEGMENTS_PER_JOB:
+                            error_message = f"한 번에 최대 {self.MAX_SEGMENTS_PER_JOB}개의 구간 정보만 제출할 수 있습니다."
+                            if is_ajax:
+                                return JsonResponse({'success': False, 'message': error_message})
+                            else:
+                                messages.error(request, error_message)
+                                context = {'form': form, 'group_id': group_id, 'current_group_object': current_group_object}
+                                return render(request, self.template_name, context)
 
-                        # 이미 위에서 len(segment_lines)로 1차 검사했지만, 
-                        # 유효한 segment만 카운트해서 실제 생성되는 segment 수를 제한할 수도 있습니다.
-                        # 여기서는 num_segments_created를 통해 실제 생성된 segment 수를 확인할 수 있습니다.
-                        # if num_segments_created >= self.MAX_SEGMENTS_PER_JOB:
-                        #     parse_errors.append(f"최대 {self.MAX_SEGMENTS_PER_JOB}개의 유효한 구간만 처리됩니다. 이후 구간은 무시됩니다.")
-                        #     break # 더 이상 처리하지 않고 루프 종료
+                        # 실제 유효한 세그먼트 정보가 있는지 확인 (모든 줄이 비어있거나 공백인지)
+                        if not segment_lines or not any(line.strip() for line in segment_lines):
+                            raise ValueError("구간 정보가 최소 한 개 이상 필요합니다.") 
+                        
+                        num_segments_created = 0
+                        parse_errors = []
+                        for line_number, line in enumerate(segment_lines, 1):
+                            line = line.strip()
+                            if not line: continue
 
-                        parts = line.split(maxsplit=1)
-                        time_range_str = parts[0]
-                        output_id = parts[1] if len(parts) > 1 else None
-                        try:
-                            start_time_str_from_parse, end_time_str_from_parse = parse_time_range(time_range_str)
-                            start_seconds_float = time_to_seconds(start_time_str_from_parse)
-                            end_seconds_float = time_to_seconds(end_time_str_from_parse)
-                            start_seconds_int = int(start_seconds_float)
-                            end_seconds_int = int(end_seconds_float)
+                            parts = line.split(maxsplit=1)
+                            time_range_str = parts[0]
+                            output_id = parts[1] if len(parts) > 1 else None
+                            try:
+                                start_time_str_from_parse, end_time_str_from_parse = parse_time_range(time_range_str)
+                                start_seconds_float = time_to_seconds(start_time_str_from_parse)
+                                end_seconds_float = time_to_seconds(end_time_str_from_parse)
+                                start_seconds_int = int(start_seconds_float)
+                                end_seconds_int = int(end_seconds_float)
 
-                            if start_seconds_int < 0 or end_seconds_int < 0:
-                                raise ValueError("시간 값은 음수가 될 수 없습니다.")
-                            if end_seconds_int < start_seconds_int:
-                                raise ValueError("종료 시간은 시작 시간보다 빠를 수 없습니다.")
+                                if start_seconds_int < 0 or end_seconds_int < 0:
+                                    raise ValueError("시간 값은 음수가 될 수 없습니다.")
+                                if end_seconds_int < start_seconds_int:
+                                    raise ValueError("종료 시간은 시작 시간보다 빠를 수 없습니다.")
 
-                            VideoSegment.objects.create(
-                                job=job, 
-                                start_time=start_seconds_int,
-                                end_time=end_seconds_int,
-                                output_filename_prefix=output_id
-                            )
-                            num_segments_created += 1
-                        except ValueError as e:
-                            parse_errors.append(f"'{line}': {e}")
-                    
-                    if parse_errors:
-                        raise ValueError("잘못된 구간 정보 형식입니다: " + ", ".join(parse_errors))
-                    
-                    if num_segments_created == 0: # 유효한 세그먼트가 하나도 없는 경우
-                        raise ValueError("유효한 구간 정보가 없어 작업을 시작할 수 없습니다.")
+                                VideoSegment.objects.create(
+                                    job=job, 
+                                    start_time=start_seconds_int,
+                                    end_time=end_seconds_int,
+                                    output_filename_prefix=output_id
+                                )
+                                num_segments_created += 1
+                            except ValueError as e:
+                                parse_errors.append(f"'{line}': {e}")
+                        
+                        if parse_errors:
+                            raise ValueError("잘못된 구간 정보 형식입니다: " + ", ".join(parse_errors))
+                        
+                        if num_segments_created == 0: # 유효한 세그먼트가 하나도 없는 경우
+                            raise ValueError("유효한 구간 정보가 없어 작업을 시작할 수 없습니다.")
 
                     # auto_start가 True인 경우에만 Celery 작업 즉시 호출
                     if auto_start:
                         download_and_process_video_task.delay(job.job_id)
-                        success_message = f'작업이 성공적으로 제출되었습니다. Job ID: {job.job_id}'
+                        if download_full_video:
+                            success_message = f'전체 영상 다운로드 작업이 성공적으로 제출되었습니다. Job ID: {job.job_id}'
+                        else:
+                            success_message = f'작업이 성공적으로 제출되었습니다. Job ID: {job.job_id}'
                     else:
-                        success_message = f'작업이 대기 상태로 추가되었습니다. Job ID: {job.job_id}'
+                        if download_full_video:
+                            success_message = f'전체 영상 다운로드 작업이 대기 상태로 추가되었습니다. Job ID: {job.job_id}'
+                        else:
+                            success_message = f'작업이 대기 상태로 추가되었습니다. Job ID: {job.job_id}'
                     
                     if is_ajax:
                         return JsonResponse({
@@ -452,8 +470,6 @@ class GroupBatchStartView(LoginRequiredMixin, View):
                     started_count += 1
                 except Exception as e:
                     # 개별 작업 시작 실패 시 로그 기록 (import logging 필요)
-                    import logging
-                    logger = logging.getLogger(__name__)
                     logger.error(f"그룹 일괄 처리 시작 실패 (Job ID: {job.job_id}): {e}")
             
             if started_count > 0:
@@ -544,3 +560,133 @@ class ProcessingInfoView(LoginRequiredMixin, View):
             'total_jobs_count': total_jobs_count,
             'timestamp': timezone.now().isoformat()
         })
+
+class DownloadJobZipView(LoginRequiredMixin, View):
+    """개별 작업의 모든 완료된 세그먼트를 압축하여 다운로드하는 뷰"""
+    def get(self, request, job_id):
+        try:
+            job = ProcessingJob.objects.get(job_id=job_id, user=request.user)
+        except ProcessingJob.DoesNotExist:
+            messages.error(request, "해당 작업을 찾을 수 없습니다.")
+            return redirect(reverse('core:dashboard'))
+        
+        # 완료된 세그먼트들만 가져오기
+        completed_segments = job.segments.filter(
+            status='COMPLETED',
+            processed_file_path__isnull=False
+        ).exclude(processed_file_path='')
+        
+        if not completed_segments.exists():
+            messages.warning(request, "다운로드할 완료된 세그먼트가 없습니다.")
+            return redirect(reverse('video_processor:job_status', kwargs={'job_id': job_id}))
+        
+        try:
+            # 임시 ZIP 파일 생성
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.zip') as temp_zip:
+                with zipfile.ZipFile(temp_zip, 'w', zipfile.ZIP_DEFLATED) as zipf:
+                    for segment in completed_segments:
+                        file_path = Path(settings.MEDIA_ROOT) / segment.processed_file_path
+                        if file_path.exists():
+                            # ZIP 내부 파일명 생성
+                            original_filename = file_path.name
+                            if segment.output_filename_prefix:
+                                zip_filename = f"{segment.output_filename_prefix}_{original_filename}"
+                            else:
+                                zip_filename = f"segment_{segment.segment_id}_{original_filename}"
+                            
+                            zipf.write(file_path, zip_filename)
+                        else:
+                            logger.warning(f"세그먼트 파일을 찾을 수 없습니다: {segment.processed_file_path}")
+                
+                # ZIP 파일 다운로드 응답 생성
+                temp_zip.seek(0)
+                with open(temp_zip.name, 'rb') as zip_file:
+                    response = HttpResponse(zip_file.read(), content_type='application/zip')
+                    
+                    # 파일명 생성 (비디오 제목 또는 Job ID 사용)
+                    if job.video_title and job.video_title != '제목 미탐지':
+                        safe_title = re.sub(r'[^\w\s-]', '', job.video_title).strip()
+                        safe_title = re.sub(r'[-\s]+', '-', safe_title)
+                        filename = f"{safe_title}_segments.zip"
+                    else:
+                        filename = f"job_{job.job_id}_segments.zip"
+                    
+                    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+                    
+                # 임시 파일 정리
+                os.unlink(temp_zip.name)
+                return response
+                
+        except Exception as e:
+            logger.error(f"작업 압축 다운로드 실패 (Job ID: {job_id}): {e}")
+            messages.error(request, "압축 파일 생성 중 오류가 발생했습니다.")
+            return redirect(reverse('video_processor:job_status', kwargs={'job_id': job_id}))
+
+class DownloadGroupZipView(LoginRequiredMixin, View):
+    """그룹 내 모든 작업의 완료된 세그먼트를 폴더별로 구분하여 압축 다운로드하는 뷰"""
+    def get(self, request, group_id):
+        try:
+            group = TaskGroup.objects.get(group_id=group_id, user=request.user)
+        except TaskGroup.DoesNotExist:
+            messages.error(request, "해당 그룹을 찾을 수 없습니다.")
+            return redirect(reverse('core:dashboard'))
+        
+        # 그룹 내 모든 작업의 완료된 세그먼트들 가져오기
+        completed_segments = VideoSegment.objects.filter(
+            job__group=group,
+            job__user=request.user,
+            status='COMPLETED',
+            processed_file_path__isnull=False
+        ).exclude(processed_file_path='').select_related('job')
+        
+        if not completed_segments.exists():
+            messages.warning(request, "다운로드할 완료된 세그먼트가 없습니다.")
+            return redirect(reverse('video_processor:group_detail', kwargs={'group_id': group_id}))
+        
+        try:
+            # 임시 ZIP 파일 생성
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.zip') as temp_zip:
+                with zipfile.ZipFile(temp_zip, 'w', zipfile.ZIP_DEFLATED) as zipf:
+                    for segment in completed_segments:
+                        file_path = Path(settings.MEDIA_ROOT) / segment.processed_file_path
+                        if file_path.exists():
+                            # 작업별 폴더 구조 생성
+                            job = segment.job
+                            if job.video_title and job.video_title != '제목 미탐지':
+                                safe_job_title = re.sub(r'[^\w\s-]', '', job.video_title).strip()
+                                safe_job_title = re.sub(r'[-\s]+', '-', safe_job_title)
+                                job_folder = f"{safe_job_title}_{str(job.job_id)[:8]}"
+                            else:
+                                job_folder = f"job_{str(job.job_id)[:8]}"
+                            
+                            # ZIP 내부 파일명 생성 (폴더/파일명)
+                            original_filename = file_path.name
+                            if segment.output_filename_prefix:
+                                zip_filename = f"{job_folder}/{segment.output_filename_prefix}_{original_filename}"
+                            else:
+                                zip_filename = f"{job_folder}/segment_{str(segment.segment_id)[:8]}_{original_filename}"
+                            
+                            zipf.write(file_path, zip_filename)
+                        else:
+                            logger.warning(f"세그먼트 파일을 찾을 수 없습니다: {segment.processed_file_path}")
+                
+                # ZIP 파일 다운로드 응답 생성
+                temp_zip.seek(0)
+                with open(temp_zip.name, 'rb') as zip_file:
+                    response = HttpResponse(zip_file.read(), content_type='application/zip')
+                    
+                    # 파일명 생성 (그룹명 사용)
+                    safe_group_name = re.sub(r'[^\w\s-]', '', group.name).strip()
+                    safe_group_name = re.sub(r'[-\s]+', '-', safe_group_name)
+                    filename = f"{safe_group_name}_all_segments.zip"
+                    
+                    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+                    
+                # 임시 파일 정리
+                os.unlink(temp_zip.name)
+                return response
+                
+        except Exception as e:
+            logger.error(f"그룹 압축 다운로드 실패 (Group ID: {group_id}): {e}")
+            messages.error(request, "압축 파일 생성 중 오류가 발생했습니다.")
+            return redirect(reverse('video_processor:group_detail', kwargs={'group_id': group_id}))
