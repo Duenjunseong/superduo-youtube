@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% load widget_tweaks %}
+
+{% block title %}영상 구간 다운로드 및 처리{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <h2>영상 구간 다운로드 및 처리</h2>
+    <p class="lead">유튜브 영상 URL과 원하는 구간 정보를 입력하여 영상을 다운로드하고 잘라낼 수 있습니다.</p>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert {% if message.tags %}alert-{{ message.tags }}{% else %}alert-info{% endif %} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <form method="post" novalidate>
+        {% csrf_token %}
+        
+        <div class="mb-3">
+            <label for="{{ form.youtube_url.id_for_label }}" class="form-label">{{ form.youtube_url.label }}</label>
+            {% render_field form.youtube_url class+="form-control" %}
+            {% if form.youtube_url.help_text %}
+                <div class="form-text">{{ form.youtube_url.help_text }}</div>
+            {% endif %}
+            {% for error in form.youtube_url.errors %}
+                <div class="invalid-feedback d-block">{{ error }}</div>
+            {% endfor %}
+        </div>
+
+        <div class="mb-3">
+            <label for="{{ form.segments_input.id_for_label }}" class="form-label">{{ form.segments_input.label }}</label>
+            {% render_field form.segments_input class+="form-control" rows="5" %}
+            {% if form.segments_input.help_text %}
+                <div class="form-text">{{ form.segments_input.help_text }}</div>
+            {% endif %}
+            {% for error in form.segments_input.errors %}
+                <div class="invalid-feedback d-block">{{ error }}</div>
+            {% endfor %}
+        </div>
+
+        <div class="mb-3">
+            <label for="{{ form.group_name.id_for_label }}" class="form-label">{{ form.group_name.label }}</label>
+            {% render_field form.group_name class+="form-control" %}
+            {% if form.group_name.help_text %}
+                <div class="form-text">{{ form.group_name.help_text }}</div>
+            {% endif %}
+            {% for error in form.group_name.errors %}
+                <div class="invalid-feedback d-block">{{ error }}</div>
+            {% endfor %}
+        </div>
+
+        <button type="submit" class="btn btn-primary">작업 제출</button>
+    </form>
+
+    <hr class="my-4">
+    <p><small>안내: 각 구간은 "시작시간-종료시간 [선택적 파일ID]" 형식으로 입력해주세요. 예: 00:01:10-00:01:45 인트로_영상</small></p>
+</div>
+{% endblock %} 

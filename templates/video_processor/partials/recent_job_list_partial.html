@@ -1,0 +1,70 @@
+{% if recent_jobs %}
+    <ul class="list-group list-group-flush recent-jobs-list">
+        {% for job in recent_jobs %}
+            <li class="list-group-item">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div class="flex-grow-1">
+                        <a href="{% url 'video_processor:job_status' job_id=job.job_id %}" title="{{ job.youtube_url }}" class="text-decoration-none">
+                            {% if job.video_title %}
+                                {{ job.video_title|truncatechars:40 }}
+                            {% else %}
+                                제목 미탐지
+                            {% endif %}
+                            <i class="fas fa-external-link-alt ms-1" style="font-size:0.8em;"></i>
+                        </a>
+                        <br>
+                        <small class="text-muted">
+                            {% if job.group %}{{ job.group.name|truncatechars:20 }} | {% endif %}
+                            {{ job.created_at|date:"y-m-d H:i" }}
+                        </small>
+                    </div>
+                    <div class="d-flex flex-column align-items-end">
+                        <span class="badge mb-2
+                            {% if job.status == 'COMPLETED' %}bg-success
+                            {% elif job.status == 'PROCESSING' or job.status == 'DOWNLOADING' %}bg-primary
+                            {% elif job.status == 'PENDING' %}bg-secondary
+                            {% elif job.status == 'FAILED' %}bg-danger
+                            {% else %}bg-dark{% endif %}" style="min-width: 70px; text-align: center;">
+                            {{ job.get_status_display }}
+                        </span>
+                        
+                        {# 상태별 버튼 표시 #}
+                        {% if job.status == 'COMPLETED' %}
+                            {# 완료된 작업: 다운로드 버튼들 표시 #}
+                            <div class="btn-group-vertical btn-group-sm" role="group">
+                                {% for segment in job.segments.all %}
+                                    {% if segment.status == 'COMPLETED' and segment.processed_file_path %}
+                                        <a href="/media/{{ segment.processed_file_path }}" 
+                                           class="btn btn-success btn-sm mb-1" 
+                                           download
+                                           title="세그먼트 {{ forloop.counter }} 다운로드">
+                                            <i class="fas fa-download me-1"></i>{% if segment.output_filename_prefix %}{{ segment.output_filename_prefix|truncatechars:8 }}{% else %}#{{ forloop.counter }}{% endif %}
+                                        </a>
+                                    {% endif %}
+                                {% endfor %}
+                            </div>
+                        {% elif job.status == 'FAILED' %}
+                            {# 실패한 작업: 재시도 및 삭제 버튼 #}
+                            <div class="btn-group btn-group-sm" role="group">
+                                <form method="post" action="{% url 'video_processor:job_retry' job_id=job.job_id %}" class="d-inline">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-warning btn-sm" title="재시도" onclick="return confirm('이 작업을 재시도하시겠습니까?');">
+                                        <i class="fas fa-redo"></i>
+                                    </button>
+                                </form>
+                                <form method="post" action="{% url 'video_processor:job_delete' job_id=job.job_id %}" class="d-inline">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-danger btn-sm" title="삭제" onclick="return confirm('이 작업을 삭제하시겠습니까?');">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </li>
+        {% endfor %}
+    </ul>
+{% else %}
+    <p class="text-muted p-3">최근 제출된 작업이 없습니다.</p>
+{% endif %} 

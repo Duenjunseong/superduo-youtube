@@ -88,3 +88,7 @@ local.py
 
 # 디렉토리 구조는 유지하되 내용은 제외
 !/data/.gitkeep 
+
+db.sqlite3
+
+/split_project/

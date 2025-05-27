@@ -22,9 +22,10 @@ from django.conf.urls.static import static
 
 urlpatterns = [
     path("admin/", admin.site.urls),
-    path("", include("core.urls")),
-    path("users/", include("users.urls")),
-    path("downloads/", include("downloads.urls")),
+    path("", include("core.urls", namespace="core")),
+    path("users/", include("users.urls", namespace="users")),
+    path("downloads/", include("downloads.urls", namespace="downloads")),
+    path("video-processor/", include("video_processor.urls", namespace="video_processor")),
 ]
 
 # 개발 환경에서 미디어 파일 서빙 설정

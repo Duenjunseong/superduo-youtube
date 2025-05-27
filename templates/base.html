@@ -27,7 +27,7 @@
     <div class="wrapper">
         <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
             <div class="container">
-                <a class="navbar-brand" href="{% url 'core:index' %}">
+                <a class="navbar-brand" href="{% url 'core:dashboard' %}">
                     <i class="fab fa-youtube text-danger"></i> Superduo Youtube
                 </a>
                 <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
@@ -36,7 +36,7 @@
                 <div class="collapse navbar-collapse" id="navbarNav">
                     <ul class="navbar-nav me-auto">
                         <li class="nav-item">
-                            <a class="nav-link" href="{% url 'core:index' %}">홈</a>
+                            <a class="nav-link" href="{% url 'core:dashboard' %}">홈 (대시보드)</a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link" href="{% url 'downloads:download_form' %}">다운로드</a>
@@ -47,6 +47,9 @@
                     </ul>
                     <ul class="navbar-nav">
                         {% if user.is_authenticated %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'video_processor:group_list' %}">작업 그룹</a>
+                        </li>
                         <li class="nav-item">
                             <a class="nav-link" href="{% url 'downloads:download_list' %}">내 다운로드</a>
                         </li>

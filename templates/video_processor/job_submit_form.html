@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% load widget_tweaks %}
+
+{% block title %}
+    {% if current_group_object %}그룹 "{{ current_group_object.name }}"에 작업 추가{% elif group_id %}그룹에 작업 추가{% else %}새 작업 제출{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    {% if current_group_object %}
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'video_processor:group_list' %}">그룹 목록</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'video_processor:group_detail' group_id=current_group_object.group_id %}">{{ current_group_object.name }}</a></li>
+                <li class="breadcrumb-item active" aria-current="page">새 작업 추가</li>
+            </ol>
+        </nav>
+        <h2>그룹 "{{ current_group_object.name }}"에 새 작업 추가</h2>
+    {% elif group_id %}{# current_group_object가 없지만 group_id는 있는 경우 (오류 상황 대비) #}
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'video_processor:group_list' %}">그룹 목록</a></li>
+                <li class="breadcrumb-item active" aria-current="page">그룹에 새 작업 추가 (그룹 정보 없음)</li>
+            </ol>
+        </nav>
+        <h2>그룹에 새 작업 추가 (ID: {{ group_id }})</h2>
+        <p class="text-danger">해당 그룹 정보를 찾을 수 없습니다. 그룹 ID를 확인해주세요.</p>
+    {% else %}
+        <h2>새 작업 제출</h2>
+    {% endif %}
+    <p class="lead">유튜브 영상 URL과 원하는 구간 정보를 입력하여 영상을 다운로드하고 잘라낼 수 있습니다.</p>
+
+    <form method="post" novalidate>
+        {% csrf_token %}
+        
+        {% if not current_group_object and not group_id %} {# 독립적인 Job 제출 시에만 그룹 선택 필드 표시 #}
+            <div class="mb-2">
+                <label for="{{ form.group.id_for_label }}" class="form-label">{{ form.group.label }}</label>
+                {% render_field form.group class+="form-select" %}
+                {% if form.group.help_text %}
+                    <div class="form-text small">{{ form.group.help_text|safe }}</div>
+                {% endif %}
+                {% for error in form.group.errors %}
+                    <div class="invalid-feedback d-block">{{ error }}</div>
+                {% endfor %}
+            </div>
+        {% elif current_group_object %}
+            <div class="alert alert-info mb-3">
+                <i class="fas fa-info-circle me-2"></i><strong>선택된 그룹:</strong> {{ current_group_object.name }}
+            </div>
+        {% endif %}
+
+        <div class="mb-2">
+            <label for="{{ form.youtube_url.id_for_label }}" class="form-label fw-bold">{{ form.youtube_url.label }}</label>
+            {% render_field form.youtube_url class+="form-control form-control-lg" placeholder="https://www.youtube.com/watch?v=..." %}
+            {% if form.youtube_url.help_text %}
+                <div class="form-text small">{{ form.youtube_url.help_text|safe }}</div>
+            {% endif %}
+            {% for error in form.youtube_url.errors %}
+                <div class="invalid-feedback d-block">{{ error }}</div>
+            {% endfor %}
+        </div>
+
+        <div class="mb-2">
+            <label for="{{ form.segments_input.id_for_label }}" class="form-label fw-bold">{{ form.segments_input.label }}</label>
+            {% render_field form.segments_input class+="form-control" rows="4" placeholder="0:10-0:30 intro" %}
+            {% if form.segments_input.help_text %}
+                <div class="form-text small">{{ form.segments_input.help_text|safe }}</div>
+            {% endif %}
+            <div class="form-text small bg-light p-2 rounded">
+                <code>0:10-0:30 intro</code><br>
+                <code>0:35-1:00 main_theme</code><br>
+                <small class="text-muted">결과 파일명 접두사는 선택 사항입니다.</small>
+            </div>
+            {% for error in form.segments_input.errors %}
+                <div class="invalid-feedback d-block">{{ error }}</div>
+            {% endfor %}
+        </div>
+        
+        <div class="row">
+            <div class="col-md-8 mb-2">
+                <label for="{{ form.tags_input.id_for_label }}" class="form-label">{{ form.tags_input.label }}</label>
+                {% render_field form.tags_input class+="form-control" placeholder="예: 튜토리얼, 중요, 발표자료" %}
+                {% if form.tags_input.help_text %}<div class="form-text small">{{ form.tags_input.help_text|safe }}</div>{% endif %}
+                {% for error in form.tags_input.errors %}
+                    <div class="invalid-feedback d-block">{{ error }}</div>
+                {% endfor %}
+            </div>
+            <div class="col-md-4 mb-2">
+                <div class="form-check mt-4 pt-2">
+                    {% render_field form.auto_start class+="form-check-input" %}
+                    <label for="{{ form.auto_start.id_for_label }}" class="form-check-label">
+                        {{ form.auto_start.label }}
+                    </label>
+                    {% if form.auto_start.help_text %}<div class="form-text small">{{ form.auto_start.help_text|safe }}</div>{% endif %}
+                    {% for error in form.auto_start.errors %}
+                        <div class="invalid-feedback d-block">{{ error }}</div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <div class="d-flex justify-content-end mt-3">
+            {% if current_group_object %}
+                <a href="{% url 'video_processor:group_detail' group_id=current_group_object.group_id %}" class="btn btn-secondary me-2">취소</a>
+            {% elif group_id %}
+                 <a href="{% url 'video_processor:group_list' %}" class="btn btn-secondary me-2">그룹 목록으로</a>
+            {% else %}
+                <a href="{% url 'core:dashboard' %}" class="btn btn-secondary me-2">대시보드로</a>
+            {% endif %}
+            <button type="submit" class="btn btn-primary"><i class="fas fa-plus-circle me-2"></i>작업 제출</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

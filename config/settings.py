@@ -43,12 +43,22 @@ INSTALLED_APPS = [
     
     # 서드파티 앱
     "widget_tweaks",
+    "taggit",
     
     # 사용자 정의 앱
     "core.apps.CoreConfig",
     "users.apps.UsersConfig",
     "downloads.apps.DownloadsConfig",
+    "video_processor",
 ]
+
+if DEBUG:
+    INSTALLED_APPS += [
+        'django_extensions',
+    ]
+
+    
+    
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
@@ -164,8 +174,8 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 AUTH_USER_MODEL = 'users.User'
 
 # 로그인/로그아웃 리디렉션 URL
-LOGIN_REDIRECT_URL = 'core:index'
-LOGOUT_REDIRECT_URL = 'core:index'
+LOGIN_REDIRECT_URL = 'core:dashboard'
+LOGOUT_REDIRECT_URL = 'core:dashboard'
 LOGIN_URL = 'users:login'
 
 # Celery 설정
@@ -229,6 +239,11 @@ LOGGING = {
             'level': 'INFO',
             'propagate': False,
         },
+        'django.db.backends': {
+            'level': 'INFO',
+            'handlers': [],
+            'propagate': False,
+        },
     },
 }
 
@@ -249,3 +264,36 @@ DATA_UPLOAD_MAX_MEMORY_SIZE = 5000 * 1024 * 1024
 # 파일 다운로드 설정
 FILE_DOWNLOAD_CHUNK_SIZE = 8192  # 8KB
 FILE_DOWNLOAD_TIMEOUT = 300  # 5분
+
+# SQLite OverflowError 방지 설정
+# DEBUG 모드에서 쿼리 로깅으로 인한 OverflowError를 방지
+if DEBUG:
+    # Django의 쿼리 로깅 비활성화
+    LOGGING['loggers']['django.db.backends'] = {
+        'level': 'INFO',
+        'handlers': [],
+        'propagate': False,
+    }
+    # connection.queries 저장 비활성화 (메모리 절약 + OverflowError 방지)
+    import logging
+    logging.getLogger('django.db.backends').setLevel(logging.WARNING)
+    
+    # Django 내부 설정으로 쿼리 로깅 완전 비활성화
+    import os
+    os.environ['DJANGO_LOG_LEVEL'] = 'WARNING'
+    
+    # SQLite 쿼리 로깅 완전 비활성화
+    DATABASES['default']['OPTIONS'] = {
+        'init_command': "PRAGMA journal_mode=WAL;",
+    }
+
+# SQLite에서 완전히 쿼리 로깅 비활성화 (OverflowError 방지)
+import sys
+if 'runserver' in sys.argv or 'shell' in sys.argv:
+    # 개발 환경에서만 적용
+    LOGGING['disable_existing_loggers'] = True
+    LOGGING['loggers']['django.db.backends.schema'] = {
+        'level': 'CRITICAL',
+        'handlers': [],
+        'propagate': False,
+    }

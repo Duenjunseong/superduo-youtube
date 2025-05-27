@@ -22,7 +22,7 @@ class CustomLoginView(LoginView):
 
 class CustomLogoutView(LogoutView):
     """로그아웃 뷰"""
-    next_page = reverse_lazy('core:index')
+    next_page = reverse_lazy('core:dashboard')
 
 
 class SignupView(CreateView):
@@ -73,14 +73,14 @@ def login_view(request):
             user = authenticate(username=username, password=password)
             if user is not None:
                 login(request, user)
-                return redirect('core:index')
+                return redirect('core:dashboard')
     else:
         form = AuthenticationForm()
     return render(request, 'users/login.html', {'form': form})
 
 def logout_view(request):
     logout(request)
-    return redirect('core:index')
+    return redirect('core:dashboard')
 
 def register(request):
     if request.method == 'POST':
@@ -88,7 +88,7 @@ def register(request):
         if form.is_valid():
             user = form.save()
             login(request, user)
-            return redirect('core:index')
+            return redirect('core:dashboard')
     else:
         form = CustomUserCreationForm()
     return render(request, 'users/signup.html', {'form': form})
