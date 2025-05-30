@@ -6,6 +6,7 @@
     <title>{% block title %}Superduo Youtube{% endblock %}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
     <style>
         body {
             min-height: 100vh;
@@ -20,11 +21,185 @@
         footer {
             flex-shrink: 0;
         }
+        
+        .workspace-selector {
+            border-left: 1px solid rgba(255,255,255,0.2);
+            padding-left: 1rem;
+            margin-left: 1rem;
+        }
+        
+        .workspace-selector .dropdown-toggle {
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 0.375rem;
+            padding: 0.5rem 1rem;
+            min-width: 150px;
+            text-align: left;
+        }
+        
+        .workspace-selector .dropdown-toggle:focus {
+            box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+        }
+        
+        /* 워크스페이스 선택기 개선 */
+        .workspace-selector-toggle {
+            display: flex !important;
+            align-items: center;
+            white-space: nowrap;
+            min-width: 120px;
+            padding: 0.5rem 0.75rem !important;
+            background: rgba(255,255,255,0.1);
+            border-radius: 8px;
+            transition: all 0.2s ease;
+        }
+        
+        .workspace-selector-toggle:hover {
+            background: rgba(255,255,255,0.15);
+        }
+        
+        .workspace-text {
+            font-size: 0.9rem;
+            font-weight: 500;
+            max-width: 100px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
+        /* 워크스페이스 배지 스타일 */
+        .workspace-badge {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 0.5rem;
+            flex-shrink: 0;
+        }
+        
+        .workspace-badge.personal {
+            background-color: #6c757d;
+        }
+        
+        .workspace-badge.workspace {
+            background-color: #0d6efd;
+        }
+        
+        .workspace-badge.info {
+            background-color: #17a2b8;
+        }
+        
+        .workspace-badge.success {
+            background-color: #28a745;
+        }
+        
+        .workspace-badge.primary {
+            background-color: #007bff;
+        }
+        
+        /* 로그인하지 않은 사용자를 위한 스타일 */
+        body.no-navbar {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        body.no-navbar .wrapper {
+            padding: 0;
+        }
+        
+        body.no-navbar footer {
+            background-color: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            color: white;
+        }
+        
+        /* 워크스페이스 드롭다운 개선 */
+        .workspace-dropdown-menu {
+            border: none;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+            padding: 0.5rem 0;
+            background: white;
+        }
+        
+        .workspace-dropdown-menu .dropdown-item {
+            padding: 0.75rem 1.25rem;
+            border-radius: 8px;
+            margin: 0.25rem 0.5rem;
+            transition: all 0.2s ease;
+        }
+        
+        .workspace-dropdown-menu .dropdown-item:hover {
+            background: #f8f9fa;
+            transform: translateX(4px);
+        }
+        
+        .workspace-dropdown-menu .dropdown-item.active {
+            background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+            color: white;
+        }
+        
+        .workspace-dropdown-menu .dropdown-item.active:hover {
+            background: linear-gradient(135deg, #0056b3 0%, #004085 100%);
+        }
+        
+        .workspace-dropdown-menu .dropdown-item.active .text-secondary {
+            color: rgba(255, 255, 255, 0.8) !important;
+        }
+        
+        .workspace-dropdown-menu .text-secondary {
+            color: #6c757d !important;
+        }
+        
+        .workspace-dropdown-menu .dropdown-header {
+            color: #495057;
+            font-weight: 600;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 0.5rem 1.25rem;
+        }
+        
+        .workspace-dropdown-menu .dropdown-divider {
+            margin: 0.75rem 0;
+            border-color: #e9ecef;
+        }
+        
+        /* 반응형 워크스페이스 선택기 */
+        @media (max-width: 768px) {
+            .workspace-selector-toggle {
+                min-width: 80px;
+                padding: 0.4rem 0.6rem !important;
+            }
+            
+            .workspace-text {
+                font-size: 0.8rem;
+                max-width: 60px;
+            }
+            
+            .workspace-badge {
+                width: 8px;
+                height: 8px;
+                margin-right: 0.4rem;
+            }
+        }
+        
+        /* 네비게이션 리스트 마커 제거 */
+        .navbar-nav {
+            list-style: none !important;
+        }
+        
+        .navbar-nav li {
+            list-style: none !important;
+        }
+        
+        .navbar-nav li::marker {
+            display: none !important;
+        }
     </style>
     {% block extra_css %}{% endblock %}
 </head>
-<body>
+<body{% if not user.is_authenticated %} class="no-navbar"{% endif %}>
     <div class="wrapper">
+        {% if user.is_authenticated %}
         <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
             <div class="container">
                 <a class="navbar-brand" href="{% url 'core:dashboard' %}">
@@ -45,8 +220,82 @@
                             <a class="nav-link" href="{% url 'core:about' %}">소개</a>
                         </li>
                     </ul>
+                    
                     <ul class="navbar-nav">
-                        {% if user.is_authenticated %}
+                        <!-- 워크스페이스 선택기 -->
+                        <li class="nav-item dropdown me-3">
+                            <a class="nav-link dropdown-toggle workspace-selector-toggle" href="#" id="workspaceDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                {% if user.current_workspace %}
+                                    <span class="workspace-badge workspace"></span>
+                                    <span class="workspace-text">{{ user.current_workspace.name|truncatechars:12 }}</span>
+                                {% else %}
+                                    <span class="workspace-badge personal"></span>
+                                    <span class="workspace-text">개인 모드</span>
+                                {% endif %}
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-end workspace-dropdown-menu" aria-labelledby="workspaceDropdown" style="min-width: 250px;">
+                                <!-- 개인 모드 -->
+                                <li>
+                                    <h6 class="dropdown-header">작업 모드</h6>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item d-flex align-items-center {% if not user.current_workspace %}active{% endif %}" 
+                                       href="#" onclick="switchWorkspace(null, '개인 모드')">
+                                        <span class="workspace-badge personal me-2"></span>
+                                        <div>
+                                            <div class="fw-bold">개인 모드</div>
+                                            <small class="text-secondary">개인 작업 관리</small>
+                                        </div>
+                                        {% if not user.current_workspace %}
+                                            <span class="badge bg-success ms-auto">✓</span>
+                                        {% endif %}
+                                    </a>
+                                </li>
+                                
+                                <!-- 워크스페이스 목록 -->
+                                {% if user.workspace_memberships.exists %}
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <h6 class="dropdown-header">내 워크스페이스</h6>
+                                </li>
+                                {% for membership in user.workspace_memberships.all %}
+                                    {% if membership.status == 'ACTIVE' %}
+                                    <li>
+                                        <a class="dropdown-item d-flex align-items-center {% if user.current_workspace and user.current_workspace.workspace_id == membership.workspace.workspace_id %}active{% endif %}" 
+                                           href="#" onclick="switchWorkspace('{{ membership.workspace.workspace_id }}', '{{ membership.workspace.name|escapejs }}')">
+                                            <span class="workspace-badge workspace me-2"></span>
+                                            <div class="flex-grow-1">
+                                                <div class="fw-bold">{{ membership.workspace.name }}</div>
+                                                <small class="text-secondary">{{ membership.get_role_display }}</small>
+                                            </div>
+                                            {% if user.current_workspace and user.current_workspace.workspace_id == membership.workspace.workspace_id %}
+                                                <span class="badge bg-success ms-auto">✓</span>
+                                            {% endif %}
+                                        </a>
+                                    </li>
+                                    {% endif %}
+                                {% endfor %}
+                                {% endif %}
+                                
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <a class="dropdown-item" href="{% url 'workspace:workspace_list' %}">
+                                        <span class="workspace-badge info me-2"></span> 모든 워크스페이스 보기
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" href="{% url 'workspace:workspace_create' %}">
+                                        <span class="workspace-badge success me-2"></span> 새 워크스페이스 만들기
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item text-info" href="{% url 'workspace:workspace_list' %}">
+                                        <span class="workspace-badge primary me-2"></span> 워크스페이스 찾기
+                                    </a>
+                                </li>
+                            </ul>
+                        </li>
+                        
                         <li class="nav-item">
                             <a class="nav-link" href="{% url 'video_processor:group_list' %}">작업 그룹</a>
                         </li>
@@ -59,41 +308,106 @@
                         <li class="nav-item">
                             <a class="nav-link" href="{% url 'users:logout' %}">로그아웃</a>
                         </li>
-                        {% else %}
-                        <li class="nav-item">
-                            <a class="nav-link" href="{% url 'users:login' %}">로그인</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{% url 'users:register' %}">회원가입</a>
-                        </li>
-                        {% endif %}
                     </ul>
                 </div>
             </div>
         </nav>
+        {% endif %}
 
-        <div class="container mt-4">
+        <div class="{% if user.is_authenticated %}container mt-4{% else %}container-fluid p-0{% endif %}">
             {% if messages %}
-                {% for message in messages %}
-                    <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
-                        {{ message }}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                    </div>
-                {% endfor %}
+                <div class="{% if user.is_authenticated %}{% else %}position-fixed top-0 start-50 translate-middle-x{% endif %}" style="{% if not user.is_authenticated %}z-index: 1050; margin-top: 20px;{% endif %}">
+                    {% for message in messages %}
+                        <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    {% endfor %}
+                </div>
             {% endif %}
 
             {% block content %}{% endblock %}
         </div>
     </div>
 
+    {% if user.is_authenticated %}
     <footer class="text-center py-3">
         <div class="container">
             <p class="mb-0">&copy; Superduo YouTube. All rights reserved.</p>
         </div>
     </footer>
+    {% else %}
+    <footer class="text-center py-3">
+        <div class="container">
+            <p class="mb-0">&copy; Superduo YouTube. All rights reserved.</p>
+        </div>
+    </footer>
+    {% endif %}
 
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    
+    {% if user.is_authenticated %}
+    <script>
+        // 워크스페이스 전환 함수
+        function switchWorkspace(workspaceId, workspaceName) {
+            // 로딩 상태 표시
+            const dropdown = document.getElementById('workspaceDropdown');
+            const originalText = dropdown.innerHTML;
+            dropdown.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 전환 중...';
+            
+            // CSRF 토큰 가져오기
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || 
+                             document.querySelector('meta[name="csrf-token"]')?.content;
+            
+            // 전환 요청
+            const formData = new FormData();
+            if (workspaceId) {
+                formData.append('workspace_id', workspaceId);
+            } else {
+                formData.append('workspace_id', ''); // 개인 모드
+            }
+            if (csrfToken) {
+                formData.append('csrfmiddlewaretoken', csrfToken);
+            }
+            
+            fetch('{% url "workspace:switch_workspace" %}', {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // 성공 시 대시보드로 리다이렉트
+                    window.location.href = '{% url "core:dashboard" %}';
+                } else {
+                    // 실패 시 원상복구 및 에러 메시지
+                    dropdown.innerHTML = originalText;
+                    alert(data.message || '워크스페이스 전환에 실패했습니다.');
+                }
+            })
+            .catch(error => {
+                // 에러 시 원상복구
+                dropdown.innerHTML = originalText;
+                console.error('워크스페이스 전환 오류:', error);
+                alert('워크스페이스 전환 중 오류가 발생했습니다.');
+            });
+        }
+        
+        // CSRF 토큰을 meta 태그에서 가져올 수 있도록 설정
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
+        if (csrfToken) {
+            const metaTag = document.createElement('meta');
+            metaTag.name = 'csrf-token';
+            metaTag.content = csrfToken;
+            document.head.appendChild(metaTag);
+        }
+    </script>
+    {% endif %}
+    
     {% block extra_js %}{% endblock %}
 </body>
 </html> 

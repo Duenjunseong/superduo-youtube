@@ -3,87 +3,277 @@
 
 {% block title %}회원가입{% endblock %}
 
+{% block extra_css %}
+<style>
+    .signup-container {
+        min-height: 100vh; /* 전체 화면 높이 사용 */
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem 1rem;
+    }
+    
+    .signup-card {
+        width: 100%;
+        max-width: 450px;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+        border: none;
+        border-radius: 16px;
+        backdrop-filter: blur(10px);
+        background: rgba(255, 255, 255, 0.95);
+    }
+    
+    .signup-header {
+        background: linear-gradient(135deg, #28a745, #1e7e34);
+        border-radius: 16px 16px 0 0 !important;
+        text-align: center;
+        padding: 2.5rem 1.5rem 2rem;
+    }
+    
+    .signup-header h3 {
+        font-weight: 300;
+        margin-bottom: 0.5rem;
+        font-size: 1.5rem;
+    }
+    
+    .signup-header .subtitle {
+        opacity: 0.9;
+        font-size: 0.9rem;
+    }
+    
+    .signup-body {
+        padding: 2.5rem 2rem;
+    }
+    
+    .form-control {
+        border-radius: 10px;
+        border: 2px solid #e0e0e0;
+        padding: 0.875rem 1.25rem;
+        font-size: 0.95rem;
+        transition: all 0.3s ease;
+        background-color: #f8f9fa;
+    }
+    
+    .form-control:focus {
+        border-color: #28a745;
+        box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.15);
+        background-color: white;
+    }
+    
+    .form-label {
+        font-weight: 600;
+        margin-bottom: 0.75rem;
+        color: #495057;
+    }
+    
+    .btn-signup {
+        background: linear-gradient(135deg, #28a745, #1e7e34);
+        border: none;
+        border-radius: 10px;
+        padding: 1rem;
+        font-weight: 600;
+        font-size: 1rem;
+        transition: all 0.3s ease;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .btn-signup:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(40, 167, 69, 0.4);
+        background: linear-gradient(135deg, #1e7e34, #155724);
+    }
+    
+    .btn-signup:active {
+        transform: translateY(0);
+    }
+    
+    .signup-footer {
+        background-color: #f8f9fa;
+        border-radius: 0 0 16px 16px;
+        padding: 1.75rem 2rem;
+        text-align: center;
+        border-top: 1px solid #e9ecef;
+    }
+    
+    .signup-footer a {
+        color: #28a745;
+        font-weight: 600;
+        transition: color 0.3s ease;
+    }
+    
+    .signup-footer a:hover {
+        color: #1e7e34;
+        text-decoration: none;
+    }
+    
+    .brand-logo {
+        font-size: 2.5rem;
+        margin-bottom: 1rem;
+        color: white;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    }
+    
+    .alert {
+        border-radius: 10px;
+        border: none;
+        margin-bottom: 1.5rem;
+        padding: 1rem 1.25rem;
+    }
+    
+    .text-danger {
+        font-size: 0.875rem;
+        margin-top: 0.5rem;
+    }
+    
+    .form-text {
+        font-size: 0.875rem;
+        color: #6c757d;
+        margin-top: 0.5rem;
+    }
+    
+    /* 애니메이션 효과 */
+    .signup-card {
+        animation: slideUp 0.6s ease-out;
+    }
+    
+    @keyframes slideUp {
+        from {
+            opacity: 0;
+            transform: translateY(30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    /* 반응형 디자인 */
+    @media (max-width: 576px) {
+        .signup-container {
+            padding: 1rem 0.5rem;
+        }
+        
+        .signup-card {
+            max-width: 380px;
+        }
+        
+        .signup-header {
+            padding: 2rem 1rem 1.5rem;
+        }
+        
+        .signup-body {
+            padding: 2rem 1.5rem;
+        }
+        
+        .brand-logo {
+            font-size: 2rem;
+        }
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="row">
-    <div class="col-md-6 offset-md-3">
-        <div class="card">
-            <div class="card-header bg-primary text-white">
-                <h3 class="mb-0">회원가입</h3>
+<div class="signup-container">
+    <div class="card signup-card">
+        <div class="card-header signup-header">
+            <div class="brand-logo">
+                <i class="fab fa-youtube text-white"></i>
             </div>
-            <div class="card-body">
-                <form method="post">
-                    {% csrf_token %}
-                    
-                    {% if form.non_field_errors %}
-                    <div class="alert alert-danger">
-                        {% for error in form.non_field_errors %}
-                        {{ error }}
+            <h3 class="mb-0 text-white">Superduo YouTube</h3>
+            <p class="subtitle text-white mb-0">새 계정을 만들어 시작하세요</p>
+        </div>
+        <div class="card-body signup-body">
+            <form method="post">
+                {% csrf_token %}
+                
+                {% if form.non_field_errors %}
+                <div class="alert alert-danger border-0">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    {% for error in form.non_field_errors %}
+                    {{ error }}
+                    {% endfor %}
+                </div>
+                {% endif %}
+                
+                <div class="mb-3">
+                    <label for="{{ form.username.id_for_label }}" class="form-label">
+                        <i class="fas fa-user me-2 text-muted"></i>아이디
+                    </label>
+                    {{ form.username|add_class:"form-control" }}
+                    {% if form.username.errors %}
+                    <div class="text-danger">
+                        {% for error in form.username.errors %}
+                        <i class="fas fa-exclamation-circle me-1"></i>{{ error }}
                         {% endfor %}
                     </div>
                     {% endif %}
-                    
-                    <div class="mb-3">
-                        <label for="{{ form.username.id_for_label }}" class="form-label">아이디</label>
-                        {{ form.username|add_class:"form-control" }}
-                        {% if form.username.errors %}
-                        <div class="text-danger">
-                            {% for error in form.username.errors %}
-                            {{ error }}
-                            {% endfor %}
-                        </div>
-                        {% endif %}
-                        <div class="form-text">{{ form.username.help_text }}</div>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="{{ form.email.id_for_label }}" class="form-label">이메일</label>
-                        {{ form.email|add_class:"form-control" }}
-                        {% if form.email.errors %}
-                        <div class="text-danger">
-                            {% for error in form.email.errors %}
-                            {{ error }}
-                            {% endfor %}
-                        </div>
-                        {% endif %}
-                        <div class="form-text">{{ form.email.help_text }}</div>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="{{ form.password1.id_for_label }}" class="form-label">비밀번호</label>
-                        {{ form.password1|add_class:"form-control" }}
-                        {% if form.password1.errors %}
-                        <div class="text-danger">
-                            {% for error in form.password1.errors %}
-                            {{ error }}
-                            {% endfor %}
-                        </div>
-                        {% endif %}
-                        <div class="form-text">{{ form.password1.help_text }}</div>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="{{ form.password2.id_for_label }}" class="form-label">비밀번호 확인</label>
-                        {{ form.password2|add_class:"form-control" }}
-                        {% if form.password2.errors %}
-                        <div class="text-danger">
-                            {% for error in form.password2.errors %}
-                            {{ error }}
-                            {% endfor %}
-                        </div>
-                        {% endif %}
-                        <div class="form-text">{{ form.password2.help_text }}</div>
-                    </div>
-                    
-                    <div class="d-grid">
-                        <button type="submit" class="btn btn-primary">회원가입</button>
-                    </div>
-                </form>
-            </div>
-            <div class="card-footer">
-                <div class="text-center">
-                    이미 계정이 있으신가요? <a href="{% url 'users:login' %}">로그인</a>
+                    {% if form.username.help_text %}
+                    <div class="form-text">{{ form.username.help_text }}</div>
+                    {% endif %}
                 </div>
-            </div>
+                
+                <div class="mb-3">
+                    <label for="{{ form.email.id_for_label }}" class="form-label">
+                        <i class="fas fa-envelope me-2 text-muted"></i>이메일
+                    </label>
+                    {{ form.email|add_class:"form-control" }}
+                    {% if form.email.errors %}
+                    <div class="text-danger">
+                        {% for error in form.email.errors %}
+                        <i class="fas fa-exclamation-circle me-1"></i>{{ error }}
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                    {% if form.email.help_text %}
+                    <div class="form-text">{{ form.email.help_text }}</div>
+                    {% endif %}
+                </div>
+                
+                <div class="mb-3">
+                    <label for="{{ form.password1.id_for_label }}" class="form-label">
+                        <i class="fas fa-lock me-2 text-muted"></i>비밀번호
+                    </label>
+                    {{ form.password1|add_class:"form-control" }}
+                    {% if form.password1.errors %}
+                    <div class="text-danger">
+                        {% for error in form.password1.errors %}
+                        <i class="fas fa-exclamation-circle me-1"></i>{{ error }}
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                    {% if form.password1.help_text %}
+                    <div class="form-text">{{ form.password1.help_text }}</div>
+                    {% endif %}
+                </div>
+                
+                <div class="mb-4">
+                    <label for="{{ form.password2.id_for_label }}" class="form-label">
+                        <i class="fas fa-lock me-2 text-muted"></i>비밀번호 확인
+                    </label>
+                    {{ form.password2|add_class:"form-control" }}
+                    {% if form.password2.errors %}
+                    <div class="text-danger">
+                        {% for error in form.password2.errors %}
+                        <i class="fas fa-exclamation-circle me-1"></i>{{ error }}
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                    {% if form.password2.help_text %}
+                    <div class="form-text">{{ form.password2.help_text }}</div>
+                    {% endif %}
+                </div>
+                
+                <div class="d-grid">
+                    <button type="submit" class="btn btn-success btn-signup">
+                        <i class="fas fa-user-plus me-2"></i>회원가입
+                    </button>
+                </div>
+            </form>
+        </div>
+        <div class="card-footer signup-footer">
+            <span class="text-muted">이미 계정이 있으신가요?</span>
+            <a href="{% url 'users:login' %}" class="text-decoration-none fw-medium">로그인</a>
         </div>
     </div>
 </div>

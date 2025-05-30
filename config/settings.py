@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     
     # 서드파티 앱
+    "guardian",
     "widget_tweaks",
     "taggit",
     
@@ -50,6 +51,7 @@ INSTALLED_APPS = [
     "users.apps.UsersConfig",
     "downloads.apps.DownloadsConfig",
     "video_processor",
+    "workspace",
 ]
 
 if DEBUG:
@@ -172,6 +174,15 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # 커스텀 사용자 모델
 AUTH_USER_MODEL = 'users.User'
+
+# django-guardian 설정
+AUTHENTICATION_BACKENDS = (
+    'django.contrib.auth.backends.ModelBackend', # 기본 인증 백엔드
+    'guardian.backends.ObjectPermissionBackend', # 객체 수준 권한 백엔드
+)
+
+# Anonymous user 설정 (선택적)
+ANONYMOUS_USER_NAME = None
 
 # 로그인/로그아웃 리디렉션 URL
 LOGIN_REDIRECT_URL = 'core:dashboard'

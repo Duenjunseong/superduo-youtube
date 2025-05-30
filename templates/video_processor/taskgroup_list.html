@@ -1,12 +1,42 @@
 {% extends "base.html" %}
 
-{% block title %}내 작업 그룹 목록{% endblock %}
+{% block title %}
+{% if current_workspace %}
+{{ current_workspace.name }} - 작업 그룹
+{% else %}
+개인 작업 그룹
+{% endif %}
+{% endblock %}
 
 {% block content %}
 <div class="container mt-5">
     <div class="d-flex justify-content-between align-items-center mb-3">
-        <h2>내 작업 그룹 목록</h2>
-        <a href="{% url 'video_processor:group_create' %}" class="btn btn-primary">새 그룹 만들기</a>
+        <div>
+            <h2>
+                {% if current_workspace %}
+                    <i class="bi bi-building"></i> {{ current_workspace.name }}
+                    <small class="text-muted">워크스페이스 작업 그룹</small>
+                {% else %}
+                    <i class="bi bi-person"></i> 개인 작업 그룹
+                {% endif %}
+            </h2>
+            {% if current_workspace %}
+            <p class="text-muted mb-0">
+                현재 {{ current_workspace.name }} 워크스페이스의 작업 그룹들을 관리하고 있습니다.
+            </p>
+            {% else %}
+            <p class="text-muted mb-0">
+                개인 모드에서 자신만의 작업 그룹들을 관리하고 있습니다.
+            </p>
+            {% endif %}
+        </div>
+        {% if can_create_group %}
+        <a href="{% url 'video_processor:group_create' %}" class="btn btn-primary">
+            <i class="bi bi-plus-lg"></i> 새 그룹 만들기
+        </a>
+        {% else %}
+        <span class="text-muted">그룹 생성 권한이 없습니다</span>
+        {% endif %}
     </div>
 
     {% if task_groups %}
@@ -14,23 +44,58 @@
             {% for group in task_groups %}
                 <a href="{% url 'video_processor:group_detail' group_id=group.group_id %}" class="list-group-item list-group-item-action flex-column align-items-start">
                     <div class="d-flex w-100 justify-content-between">
-                        <h5 class="mb-1">{{ group.name }}</h5>
+                        <h5 class="mb-1">
+                            {{ group.name }}
+                            {% if group.workspace %}
+                                <span class="badge bg-primary ms-2">{{ group.workspace.name }}</span>
+                            {% else %}
+                                <span class="badge bg-secondary ms-2">개인</span>
+                            {% endif %}
+                        </h5>
                         <small class="text-muted">{{ group.created_at|date:"Y-m-d H:i" }}</small>
                     </div>
                     <p class="mb-1">{{ group.description|truncatewords:30|default:"설명 없음" }}</p>
-                    <small class="text-muted">포함된 작업 수: {{ group.jobs.count }} 개</small>
-                    <span class="badge rounded-pill bg-info ms-2">{{ group.get_status_display }}</span>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <small class="text-muted">포함된 작업 수: {{ group.jobs.count }} 개</small>
+                        <span class="badge rounded-pill bg-info">{{ group.get_status_display }}</span>
+                    </div>
                 </a>
             {% endfor %}
         </div>
     {% else %}
         <div class="alert alert-info" role="alert">
-            아직 생성된 작업 그룹이 없습니다. <a href="{% url 'video_processor:group_create' %}" class="alert-link btn btn-sm btn-outline-primary">새 그룹을 만들어 보세요.</a>
+            <h4 class="alert-heading">
+                {% if current_workspace %}
+                    {{ current_workspace.name }} 워크스페이스에 작업 그룹이 없습니다
+                {% else %}
+                    개인 작업 그룹이 없습니다
+                {% endif %}
+            </h4>
+            <p>
+                {% if current_workspace %}
+                    이 워크스페이스에서 첫 번째 작업 그룹을 만들어보세요.
+                {% else %}
+                    개인 작업을 관리할 첫 번째 그룹을 만들어보세요.
+                {% endif %}
+            </p>
+            {% if can_create_group %}
+            <hr>
+            <a href="{% url 'video_processor:group_create' %}" class="btn btn-outline-primary">
+                <i class="bi bi-plus-lg"></i> 새 그룹 만들기
+            </a>
+            {% endif %}
         </div>
     {% endif %}
 
     <div class="mt-4">
-        <a href="{% url 'video_processor:job_submit' %}" class="btn btn-outline-secondary">그룹 없이 작업 제출하기</a>
+        <a href="{% url 'video_processor:job_submit' %}" class="btn btn-outline-secondary">
+            <i class="bi bi-play-circle"></i> 그룹 없이 작업 제출하기
+        </a>
+        {% if current_workspace %}
+        <a href="{% url 'workspace:workspace_detail' workspace_id=current_workspace.workspace_id %}" class="btn btn-outline-info ms-2">
+            <i class="bi bi-building"></i> 워크스페이스 관리
+        </a>
+        {% endif %}
     </div>
 </div>
 {% endblock %} 

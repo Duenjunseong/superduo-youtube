@@ -1,0 +1,240 @@
+{% extends "base.html" %}
+
+{% block title %}워크스페이스 초대{% endblock %}
+
+{% block extra_css %}
+<style>
+    .invitation-container {
+        max-width: 600px;
+        margin: 0 auto;
+        padding: 2rem 0;
+    }
+    
+    .invitation-card {
+        background: white;
+        border-radius: 20px;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+    }
+    
+    .invitation-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 2rem;
+        text-align: center;
+    }
+    
+    .workspace-avatar {
+        width: 80px;
+        height: 80px;
+        border-radius: 16px;
+        background: rgba(255, 255, 255, 0.2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: 700;
+        font-size: 2rem;
+        margin: 0 auto 1rem;
+    }
+    
+    .invitation-body {
+        padding: 2rem;
+    }
+    
+    .info-item {
+        background: #f8f9fa;
+        border-radius: 12px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        border-left: 4px solid #007bff;
+    }
+    
+    .action-buttons {
+        padding: 1.5rem 2rem;
+        background: #f8f9fa;
+        border-top: 1px solid #e9ecef;
+    }
+    
+    .btn-accept {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        border: none;
+        padding: 0.75rem 2rem;
+        border-radius: 12px;
+        font-weight: 600;
+    }
+    
+    .btn-decline {
+        background: linear-gradient(135deg, #dc3545 0%, #fd7e14 100%);
+        border: none;
+        padding: 0.75rem 2rem;
+        border-radius: 12px;
+        font-weight: 600;
+    }
+    
+    .expired-notice {
+        background: #f8d7da;
+        border: 1px solid #f5c6cb;
+        color: #721c24;
+        border-radius: 12px;
+        padding: 1.5rem;
+        text-align: center;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="invitation-container">
+        {% if invitation %}
+        <div class="invitation-card">
+            <div class="invitation-header">
+                <div class="workspace-avatar">
+                    {{ invitation.workspace.name.0|upper }}
+                </div>
+                <h2 class="mb-2">워크스페이스 초대</h2>
+                <p class="mb-0 opacity-90">{{ invitation.workspace.name }}에서 초대했습니다</p>
+            </div>
+            
+            <div class="invitation-body">
+                <div class="info-item">
+                    <h6 class="mb-2">
+                        <i class="fas fa-building me-2"></i>워크스페이스
+                    </h6>
+                    <div class="fw-bold">{{ invitation.workspace.name }}</div>
+                    <div class="text-muted">{{ invitation.workspace.description|default:"설명이 없습니다." }}</div>
+                </div>
+                
+                <div class="info-item">
+                    <h6 class="mb-2">
+                        <i class="fas fa-user me-2"></i>초대자
+                    </h6>
+                    <div class="fw-bold">{{ invitation.inviter.get_full_name|default:invitation.inviter.username }}</div>
+                    <div class="text-muted">{{ invitation.inviter.email }}</div>
+                </div>
+                
+                <div class="info-item">
+                    <h6 class="mb-2">
+                        <i class="fas fa-user-tag me-2"></i>부여될 역할
+                    </h6>
+                    <span class="badge 
+                        {% if invitation.role == 'ADMIN' %}bg-primary
+                        {% elif invitation.role == 'MEMBER' %}bg-success
+                        {% else %}bg-secondary{% endif %} fs-6">
+                        {{ invitation.get_role_display }}
+                    </span>
+                </div>
+                
+                <div class="info-item">
+                    <h6 class="mb-2">
+                        <i class="fas fa-clock me-2"></i>초대 날짜
+                    </h6>
+                    <div class="text-muted">{{ invitation.created_at|date:"Y년 m월 d일 H:i" }}</div>
+                </div>
+                
+                {% if invitation.message %}
+                <div class="info-item">
+                    <h6 class="mb-2">
+                        <i class="fas fa-comment me-2"></i>초대 메시지
+                    </h6>
+                    <div class="fst-italic">"{{ invitation.message }}"</div>
+                </div>
+                {% endif %}
+                
+                <!-- 워크스페이스 정보 -->
+                <div class="row g-3 mt-3">
+                    <div class="col-4">
+                        <div class="text-center">
+                            <div class="fw-bold text-primary fs-4">{{ invitation.workspace.memberships.count }}</div>
+                            <small class="text-muted">멤버</small>
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <div class="text-center">
+                            <div class="fw-bold text-success fs-4">{{ invitation.workspace.task_groups.count }}</div>
+                            <small class="text-muted">그룹</small>
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <div class="text-center">
+                            <div class="fw-bold text-info fs-4">{{ invitation.workspace.processing_jobs.count }}</div>
+                            <small class="text-muted">작업</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            {% if invitation.status == 'PENDING' %}
+            <div class="action-buttons">
+                <div class="d-flex gap-3 justify-content-center">
+                    <form method="post" action="{% url 'workspace:invitation_response' invitation_id=invitation.invitation_id %}" class="d-inline">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="accept">
+                        <button type="submit" class="btn btn-accept text-white">
+                            <i class="fas fa-check me-2"></i>참여하기
+                        </button>
+                    </form>
+                    
+                    <form method="post" action="{% url 'workspace:invitation_response' invitation_id=invitation.invitation_id %}" class="d-inline">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="decline">
+                        <button type="submit" class="btn btn-decline text-white"
+                                onclick="return confirm('정말로 이 초대를 거절하시겠습니까?')">
+                            <i class="fas fa-times me-2"></i>거절하기
+                        </button>
+                    </form>
+                </div>
+                
+                <div class="text-center mt-3">
+                    <a href="{% url 'workspace:workspace_detail' workspace_id=invitation.workspace.workspace_id %}" 
+                       class="text-muted text-decoration-none">
+                        <i class="fas fa-eye me-1"></i>워크스페이스 자세히 보기
+                    </a>
+                </div>
+            </div>
+            {% else %}
+            <div class="action-buttons text-center">
+                <div class="alert 
+                    {% if invitation.status == 'ACCEPTED' %}alert-success
+                    {% elif invitation.status == 'DECLINED' %}alert-danger
+                    {% else %}alert-secondary{% endif %} mb-0">
+                    {% if invitation.status == 'ACCEPTED' %}
+                        <i class="fas fa-check-circle me-2"></i>이미 수락한 초대입니다.
+                    {% elif invitation.status == 'DECLINED' %}
+                        <i class="fas fa-times-circle me-2"></i>거절한 초대입니다.
+                    {% else %}
+                        <i class="fas fa-clock me-2"></i>처리된 초대입니다.
+                    {% endif %}
+                </div>
+                
+                <div class="mt-3">
+                    <a href="{% url 'workspace:workspace_list' %}" class="btn btn-outline-primary">
+                        <i class="fas fa-list me-2"></i>내 워크스페이스 보기
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        
+        {% else %}
+        <!-- 초대를 찾을 수 없는 경우 -->
+        <div class="invitation-card">
+            <div class="expired-notice">
+                <i class="fas fa-exclamation-triangle fa-2x mb-3"></i>
+                <h4>초대를 찾을 수 없습니다</h4>
+                <p class="mb-0">
+                    이 초대 링크는 유효하지 않거나 만료되었습니다.<br>
+                    초대를 보낸 사람에게 새로운 초대 링크를 요청해 주세요.
+                </p>
+                
+                <div class="mt-4">
+                    <a href="{% url 'core:dashboard' %}" class="btn btn-primary">
+                        <i class="fas fa-home me-2"></i>홈으로 가기
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %} 

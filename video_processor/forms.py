@@ -1,4 +1,5 @@
 from django import forms
+from django.db.models import Q
 from .models import TaskGroup, ProcessingJob, VideoSegment
 
 class TaskGroupForm(forms.ModelForm):
@@ -14,8 +15,13 @@ class TaskGroupForm(forms.ModelForm):
             'description': '설명',
         }
 
+    def __init__(self, *args, **kwargs):
+        user = kwargs.pop('user', None)
+        super().__init__(*args, **kwargs)
+        self.user = user
+
 class JobAndSegmentForm(forms.Form):
-    # group 필드는 뷰에서 사용자의 그룹 목록을 queryset으로 받아 동적으로 설정
+    # group 필드는 뷰에서 사용자의 현재 워크스페이스 모드에 맞는 그룹 목록을 queryset으로 받아 동적으로 설정
     group = forms.ModelChoiceField(
         queryset=TaskGroup.objects.none(), # 뷰에서 재정의 필요
         required=False,
@@ -84,7 +90,22 @@ class JobAndSegmentForm(forms.Form):
         user = kwargs.pop('user', None) # 뷰에서 현재 사용자를 받아옴
         super().__init__(*args, **kwargs)
         if user:
-            self.fields['group'].queryset = TaskGroup.objects.filter(user=user, status='ACTIVE')
+            # 현재 워크스페이스 모드에 따라 그룹 목록 필터링
+            if user.is_in_workspace_mode():
+                # 워크스페이스 모드: 현재 워크스페이스의 그룹들만
+                self.fields['group'].queryset = TaskGroup.objects.filter(
+                    workspace=user.current_workspace,
+                    status='ACTIVE'
+                ).order_by('name')
+                self.fields['group'].help_text = f'현재 워크스페이스 "{user.current_workspace.name}"의 그룹 목록입니다.'
+            else:
+                # 개인 모드: 워크스페이스 없는 개인 그룹들만
+                self.fields['group'].queryset = TaskGroup.objects.filter(
+                    user=user,
+                    workspace__isnull=True,
+                    status='ACTIVE'
+                ).order_by('name')
+                self.fields['group'].help_text = '개인 그룹 목록입니다.'
 
     def clean(self):
         cleaned_data = super().clean()

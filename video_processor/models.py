@@ -14,6 +14,14 @@ class TaskGroup(models.Model):
     ]
     group_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='task_groups')
+    workspace = models.ForeignKey(
+        'workspace.Workspace', 
+        on_delete=models.CASCADE, 
+        related_name='task_groups',
+        null=True, 
+        blank=True,
+        verbose_name='워크스페이스'
+    )
     name = models.CharField(max_length=255, verbose_name='그룹명')
     description = models.TextField(blank=True, null=True, verbose_name='설명')
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='ACTIVE')
@@ -21,7 +29,26 @@ class TaskGroup(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"{self.name} (User: {self.user.username if hasattr(self.user, 'username') else self.user.pk})"
+        workspace_name = f" ({self.workspace.name})" if self.workspace else ""
+        return f"{self.name}{workspace_name} (User: {self.user.username if hasattr(self.user, 'username') else self.user.pk})"
+
+    def can_user_access(self, user):
+        """사용자가 이 그룹에 접근할 수 있는지 확인"""
+        # 개인 그룹인 경우 (workspace가 없는 경우)
+        if not self.workspace:
+            return self.user == user
+        
+        # 워크스페이스 그룹인 경우
+        return self.workspace.has_permission(user, 'view')
+
+    def can_user_edit(self, user):
+        """사용자가 이 그룹을 편집할 수 있는지 확인"""
+        # 개인 그룹인 경우
+        if not self.workspace:
+            return self.user == user
+        
+        # 워크스페이스 그룹인 경우
+        return self.workspace.has_permission(user, 'edit')
 
     class Meta:
         ordering = ['-created_at']
@@ -49,6 +76,14 @@ class ProcessingJob(models.Model):
 
     job_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='processing_jobs', null=True, blank=True, verbose_name='요청 사용자')
+    workspace = models.ForeignKey(
+        'workspace.Workspace', 
+        on_delete=models.CASCADE, 
+        related_name='processing_jobs',
+        null=True, 
+        blank=True,
+        verbose_name='워크스페이스'
+    )
     group = models.ForeignKey(TaskGroup, related_name='jobs', on_delete=models.CASCADE, null=True, blank=True, verbose_name='소속 그룹')
     youtube_url = models.URLField(max_length=2048)
     video_title = models.CharField(max_length=500, blank=True, null=True, verbose_name='비디오 제목')
@@ -60,7 +95,32 @@ class ProcessingJob(models.Model):
     tags = TaggableManager(blank=True, verbose_name='태그', through=UUIDTaggedItem)
 
     def __str__(self):
-        return f"Job {self.job_id} - {self.status}"
+        workspace_name = f" ({self.workspace.name})" if self.workspace else ""
+        return f"Job {self.job_id}{workspace_name} - {self.status}"
+
+    def can_user_access(self, user):
+        """사용자가 이 작업에 접근할 수 있는지 확인"""
+        # 개인 작업인 경우 (workspace가 없는 경우)
+        if not self.workspace:
+            return self.user == user
+        
+        # 워크스페이스 작업인 경우
+        return self.workspace.has_permission(user, 'view')
+
+    def can_user_edit(self, user):
+        """사용자가 이 작업을 편집할 수 있는지 확인"""
+        # 개인 작업인 경우
+        if not self.workspace:
+            return self.user == user
+        
+        # 워크스페이스 작업인 경우
+        return self.workspace.has_permission(user, 'edit')
+
+    def save(self, *args, **kwargs):
+        # group이 설정되어 있고 workspace가 설정되지 않은 경우, group의 workspace를 사용
+        if self.group and not self.workspace:
+            self.workspace = self.group.workspace
+        super().save(*args, **kwargs)
 
     class Meta:
         ordering = ['-created_at']
@@ -87,6 +147,10 @@ class VideoSegment(models.Model):
 
     def __str__(self):
         return f"Segment {self.segment_id} for Job {self.job.job_id} - {self.status}"
+
+    def can_user_access(self, user):
+        """사용자가 이 세그먼트에 접근할 수 있는지 확인"""
+        return self.job.can_user_access(user)
 
     class Meta:
         ordering = ['-created_at']

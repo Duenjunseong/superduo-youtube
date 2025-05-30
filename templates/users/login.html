@@ -3,42 +3,209 @@
 
 {% block title %}로그인{% endblock %}
 
+{% block extra_css %}
+<style>
+    .login-container {
+        min-height: 100vh; /* 전체 화면 높이 사용 */
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem 1rem;
+    }
+    
+    .login-card {
+        width: 100%;
+        max-width: 400px;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+        border: none;
+        border-radius: 16px;
+        backdrop-filter: blur(10px);
+        background: rgba(255, 255, 255, 0.95);
+    }
+    
+    .login-header {
+        background: linear-gradient(135deg, #007bff, #0056b3);
+        border-radius: 16px 16px 0 0 !important;
+        text-align: center;
+        padding: 2.5rem 1.5rem 2rem;
+    }
+    
+    .login-header h3 {
+        font-weight: 300;
+        margin-bottom: 0.5rem;
+        font-size: 1.5rem;
+    }
+    
+    .login-header .subtitle {
+        opacity: 0.9;
+        font-size: 0.9rem;
+    }
+    
+    .login-body {
+        padding: 2.5rem 2rem;
+    }
+    
+    .form-control {
+        border-radius: 10px;
+        border: 2px solid #e0e0e0;
+        padding: 0.875rem 1.25rem;
+        font-size: 0.95rem;
+        transition: all 0.3s ease;
+        background-color: #f8f9fa;
+    }
+    
+    .form-control:focus {
+        border-color: #007bff;
+        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.15);
+        background-color: white;
+    }
+    
+    .form-label {
+        font-weight: 600;
+        margin-bottom: 0.75rem;
+        color: #495057;
+    }
+    
+    .btn-login {
+        background: linear-gradient(135deg, #007bff, #0056b3);
+        border: none;
+        border-radius: 10px;
+        padding: 1rem;
+        font-weight: 600;
+        font-size: 1rem;
+        transition: all 0.3s ease;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .btn-login:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(0, 123, 255, 0.4);
+        background: linear-gradient(135deg, #0056b3, #004085);
+    }
+    
+    .btn-login:active {
+        transform: translateY(0);
+    }
+    
+    .login-footer {
+        background-color: #f8f9fa;
+        border-radius: 0 0 16px 16px;
+        padding: 1.75rem 2rem;
+        text-align: center;
+        border-top: 1px solid #e9ecef;
+    }
+    
+    .login-footer a {
+        color: #007bff;
+        font-weight: 600;
+        transition: color 0.3s ease;
+    }
+    
+    .login-footer a:hover {
+        color: #0056b3;
+        text-decoration: none;
+    }
+    
+    .brand-logo {
+        font-size: 2.5rem;
+        margin-bottom: 1rem;
+        color: white;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    }
+    
+    .alert {
+        border-radius: 10px;
+        border: none;
+        margin-bottom: 1.5rem;
+        padding: 1rem 1.25rem;
+    }
+    
+    /* 애니메이션 효과 */
+    .login-card {
+        animation: slideUp 0.6s ease-out;
+    }
+    
+    @keyframes slideUp {
+        from {
+            opacity: 0;
+            transform: translateY(30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    /* 반응형 디자인 */
+    @media (max-width: 576px) {
+        .login-container {
+            padding: 1rem 0.5rem;
+        }
+        
+        .login-card {
+            max-width: 350px;
+        }
+        
+        .login-header {
+            padding: 2rem 1rem 1.5rem;
+        }
+        
+        .login-body {
+            padding: 2rem 1.5rem;
+        }
+        
+        .brand-logo {
+            font-size: 2rem;
+        }
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="row">
-    <div class="col-md-6 offset-md-3">
-        <div class="card">
-            <div class="card-header bg-primary text-white">
-                <h3 class="mb-0">로그인</h3>
+<div class="login-container">
+    <div class="card login-card">
+        <div class="card-header login-header">
+            <div class="brand-logo">
+                <i class="fab fa-youtube text-white"></i>
             </div>
-            <div class="card-body">
-                <form method="post">
-                    {% csrf_token %}
-                    {% if form.errors %}
-                    <div class="alert alert-danger">
-                        아이디 또는 비밀번호가 일치하지 않습니다.
-                    </div>
-                    {% endif %}
-                    
-                    <div class="mb-3">
-                        <label for="{{ form.username.id_for_label }}" class="form-label">아이디</label>
-                        {{ form.username|add_class:"form-control" }}
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="{{ form.password.id_for_label }}" class="form-label">비밀번호</label>
-                        {{ form.password|add_class:"form-control" }}
-                    </div>
-                    
-                    <div class="d-grid">
-                        <button type="submit" class="btn btn-primary">로그인</button>
-                    </div>
-                </form>
-            </div>
-            <div class="card-footer">
-                <div class="text-center">
-                    계정이 없으신가요? <a href="{% url 'users:signup' %}">회원가입</a>
+            <h3 class="mb-0 text-white">Superduo YouTube</h3>
+            <p class="subtitle text-white mb-0">계정에 로그인하세요</p>
+        </div>
+        <div class="card-body login-body">
+            <form method="post">
+                {% csrf_token %}
+                {% if form.errors %}
+                <div class="alert alert-danger border-0" style="border-radius: 8px;">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    아이디 또는 비밀번호가 일치하지 않습니다.
                 </div>
-            </div>
+                {% endif %}
+                
+                <div class="mb-3">
+                    <label for="{{ form.username.id_for_label }}" class="form-label fw-medium">
+                        <i class="fas fa-user me-2 text-muted"></i>아이디
+                    </label>
+                    {{ form.username|add_class:"form-control" }}
+                </div>
+                
+                <div class="mb-4">
+                    <label for="{{ form.password.id_for_label }}" class="form-label fw-medium">
+                        <i class="fas fa-lock me-2 text-muted"></i>비밀번호
+                    </label>
+                    {{ form.password|add_class:"form-control" }}
+                </div>
+                
+                <div class="d-grid">
+                    <button type="submit" class="btn btn-primary btn-login">
+                        <i class="fas fa-sign-in-alt me-2"></i>로그인
+                    </button>
+                </div>
+            </form>
+        </div>
+        <div class="card-footer login-footer">
+            <span class="text-muted">계정이 없으신가요?</span>
+            <a href="{% url 'users:signup' %}" class="text-decoration-none fw-medium">회원가입</a>
         </div>
     </div>
 </div>

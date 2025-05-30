@@ -1,7 +1,13 @@
 {% extends "base.html" %}
 {% load widget_tweaks %}
 
-{% block title %}비디오 분할 대시보드{% endblock %}
+{% block title %}
+{% if current_workspace %}
+{{ current_workspace.name }} - 대시보드
+{% else %}
+개인 대시보드
+{% endif %}
+{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -12,118 +18,499 @@
         margin-right: auto;
     }
 
-    .nav-tabs .nav-link.active {
-        background-color: #f8f9fa;
-        border-bottom-color: #f8f9fa;
+    /* 워크스페이스 인디케이터 개선 - 프리미엄 디자인 */
+    .workspace-indicator {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 16px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 20px 40px rgba(102, 126, 234, 0.15), 
+                    0 8px 24px rgba(102, 126, 234, 0.12);
+        border: 1px solid rgba(255, 255, 255, 0.18);
     }
+    
+    .workspace-indicator::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(135deg, 
+            rgba(255, 255, 255, 0.1) 0%, 
+            rgba(255, 255, 255, 0.05) 50%, 
+            rgba(255, 255, 255, 0.02) 100%);
+        pointer-events: none;
+    }
+    
+    .workspace-indicator .workspace-content {
+        position: relative;
+        z-index: 1;
+        color: white;
+    }
+    
+    .workspace-indicator h4 {
+        font-weight: 600;
+        font-size: 1.5rem;
+        margin-bottom: 0.5rem;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    
+    .workspace-indicator p {
+        opacity: 0.85;
+        font-weight: 400;
+        font-size: 0.95rem;
+        line-height: 1.5;
+    }
+    
+    .workspace-indicator .btn {
+        background: rgba(255, 255, 255, 0.15);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        color: white;
+        font-weight: 500;
+        padding: 0.75rem 1.5rem;
+        border-radius: 12px;
+        backdrop-filter: blur(10px);
+        transition: all 0.3s ease;
+    }
+    
+    .workspace-indicator .btn:hover {
+        background: rgba(255, 255, 255, 0.25);
+        border-color: rgba(255, 255, 255, 0.3);
+        color: white;
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+    }
+    
+    /* 개인 모드 인디케이터 - 다른 색상 조합으로 구분 */
+    .personal-indicator {
+        background: linear-gradient(135deg, #ee7752 0%, #e73c7e 50%, #23a6d5 100%);
+        border-radius: 16px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 20px 40px rgba(238, 119, 82, 0.15), 
+                    0 8px 24px rgba(238, 119, 82, 0.12);
+        border: 1px solid rgba(255, 255, 255, 0.18);
+    }
+    
+    .personal-indicator::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(135deg, 
+            rgba(255, 255, 255, 0.1) 0%, 
+            rgba(255, 255, 255, 0.05) 50%, 
+            rgba(255, 255, 255, 0.02) 100%);
+        pointer-events: none;
+    }
+    
+    .personal-indicator .workspace-content {
+        position: relative;
+        z-index: 1;
+        color: white;
+    }
+    
+    .personal-indicator h4 {
+        font-weight: 600;
+        font-size: 1.5rem;
+        margin-bottom: 0.5rem;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    
+    .personal-indicator p {
+        opacity: 0.85;
+        font-weight: 400;
+        font-size: 0.95rem;
+        line-height: 1.5;
+    }
+    
+    .personal-indicator .btn {
+        background: rgba(255, 255, 255, 0.15);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        color: white;
+        font-weight: 500;
+        padding: 0.75rem 1.5rem;
+        border-radius: 12px;
+        backdrop-filter: blur(10px);
+        transition: all 0.3s ease;
+    }
+    
+    .personal-indicator .btn:hover {
+        background: rgba(255, 255, 255, 0.25);
+        border-color: rgba(255, 255, 255, 0.3);
+        color: white;
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+    }
+
+    /* 카드 디자인 개선 */
+    .card {
+        border: none;
+        border-radius: 16px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        transition: all 0.3s ease;
+        background: white;
+        overflow: hidden;
+    }
+    
+    .card:hover {
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+        transform: translateY(-2px);
+    }
+
     .card-header {
-        font-weight: bold;
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+        font-weight: 600;
+        padding: 1.25rem 1.5rem;
+        font-size: 0.95rem;
+        color: #495057;
     }
+
+    .card-body {
+        padding: 1.5rem;
+    }
+
+    .card-footer {
+        background: #f8f9fa;
+        border-top: 1px solid rgba(0, 0, 0, 0.05);
+        padding: 1rem 1.5rem;
+    }
+
+    /* 폼 섹션 카드 스타일 개선 */
     .form-section-card {
-        min-height: 300px; /* 우측 패널 카드 최소 높이 확보 */
+        min-height: 300px;
+        background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
     }
+
+    /* 네비게이션 탭 개선 */
+    .nav-tabs {
+        border-bottom: 2px solid #e9ecef;
+        margin-bottom: 1.5rem;
+    }
+    
+    .nav-tabs .nav-link {
+        border: none;
+        border-radius: 12px 12px 0 0;
+        color: #6c757d;
+        font-weight: 500;
+        padding: 1rem 1.5rem;
+        margin-right: 0.5rem;
+        transition: all 0.3s ease;
+        background: transparent;
+    }
+    
+    .nav-tabs .nav-link:hover {
+        border-color: transparent;
+        color: #495057;
+        background: rgba(0, 123, 255, 0.05);
+    }
+    
+    .nav-tabs .nav-link.active {
+        background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+        color: white;
+        border-color: transparent;
+        font-weight: 600;
+        box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
+    }
+
+    /* 버튼 스타일 개선 */
+    .btn {
+        border-radius: 10px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        border: none;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .btn-primary {
+        background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+        box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
+    }
+    
+    .btn-primary:hover {
+        background: linear-gradient(135deg, #0056b3 0%, #004085 100%);
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(0, 123, 255, 0.4);
+    }
+
+    .btn-success {
+        background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%);
+        box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+    }
+    
+    .btn-success:hover {
+        background: linear-gradient(135deg, #1e7e34 0%, #155724 100%);
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(40, 167, 69, 0.4);
+    }
+
+    /* 폼 컨트롤 개선 */
+    .form-control, .form-select {
+        border-radius: 10px;
+        border: 2px solid #e9ecef;
+        padding: 0.75rem 1rem;
+        transition: all 0.3s ease;
+        font-size: 0.95rem;
+    }
+    
+    .form-control:focus, .form-select:focus {
+        border-color: #007bff;
+        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.15);
+        transform: translateY(-1px);
+    }
+
+    /* 최근 작업 목록 스타일 개선 */
     .recent-jobs-list .list-group-item {
         font-size: 0.9rem;
+        border: none;
+        border-radius: 8px !important;
+        margin-bottom: 0.5rem;
+        background: #f8f9fa;
+        transition: all 0.3s ease;
     }
+    
+    .recent-jobs-list .list-group-item:hover {
+        background: #e9ecef;
+        transform: translateX(4px);
+    }
+    
     .recent-jobs-list .badge {
         font-size: 0.75rem;
+        border-radius: 6px;
+        font-weight: 500;
     }
+
+    /* 로딩 오버레이 개선 */
     .loading-overlay {
         position: absolute;
         top: 0;
         left: 0;
         width: 100%;
         height: 100%;
-        background: rgba(255, 255, 255, 0.7);
+        background: rgba(255, 255, 255, 0.9);
+        backdrop-filter: blur(4px);
         display: flex;
         align-items: center;
         justify-content: center;
         z-index: 10;
+        border-radius: 16px;
     }
-    .nav-tabs .nav-link.active {
-        font-weight: bold;
-    }
-    /* 작업 목록 탭 내의 카드 스타일 (links.html 참조) */
+
+    /* 작업 카드 관련 스타일 개선 */
     .job-card {
         margin-bottom: 15px;
         transition: all 0.3s ease;
+        border-radius: 16px;
+        overflow: hidden;
     }
+    
     .job-card:hover {
-        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+        transform: translateY(-4px);
     }
-    .job-actions { /* links.html의 스타일과 유사하게 */
+    
+    .job-actions {
         display: flex;
         justify-content: space-between;
         align-items: center;
         margin-bottom: 1rem;
         gap: 10px;
+        flex-wrap: wrap;
     }
+    
     .job-cards-container .col {
-        display: flex; /* 카드 높이 동일하게 맞추기 위해 flex 사용 */
+        display: flex;
     }
+    
     .job-card {
-        width: 100%; /* col 내부에서 카드가 꽉 차도록 */
+        width: 100%;
+        display: flex;
+        flex-direction: column;
     }
     
     /* 작업 카드 버튼 개선 */
     .job-actions .btn-sm {
-        min-width: 32px; /* 최소 너비 설정으로 아이콘만 있을 때도 일정한 크기 유지 */
-        white-space: nowrap; /* 텍스트 줄바꿈 방지 */
+        min-width: 36px;
+        white-space: nowrap;
+        border-radius: 8px;
+        font-weight: 500;
     }
     
     /* 최근 작업 목록 버튼 개선 */
     .recent-jobs-list .btn-group-vertical .btn,
     .recent-jobs-list .btn-group .btn {
-        min-width: 28px;
+        min-width: 32px;
         white-space: nowrap;
+        border-radius: 6px;
     }
     
-    /* 작은 화면에서 버튼 간격 조정 */
-    @media (max-width: 768px) {
-        .job-actions {
-            gap: 5px;
-        }
-        .job-actions .btn-sm {
-            padding: 0.25rem 0.4rem;
-            font-size: 0.75rem;
-        }
-    }
-    #status-filter-dropdown .dropdown-item.active {
-        font-weight: bold;
-        background-color: #e9ecef;
-    }
+    /* 태그 필터 개선 */
     .tag-filter-pill {
         cursor: pointer;
-        transition: all 0.2s ease;
+        transition: all 0.3s ease;
+        border-radius: 20px !important;
+        font-weight: 500;
+        border: 2px solid transparent;
     }
+    
     .tag-filter-pill:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
     }
+    
     .tag-filter-pill.active {
-        background-color: #0d6efd !important; /* Bootstrap primary color */
+        background: linear-gradient(135deg, #007bff 0%, #0056b3 100%) !important;
         color: white !important;
-        font-weight: bold;
+        font-weight: 600;
+        border-color: #007bff;
+        box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
+    }
+
+    /* 헤더 스타일 개선 */
+    header h1 {
+        font-weight: 700;
+        color: #2c3e50;
+        font-size: 2.5rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    header .lead {
+        color: #6c757d;
+        font-size: 1.2rem;
+        font-weight: 400;
+    }
+
+    /* 반응형 개선 */
+    @media (max-width: 768px) {
+        .workspace-indicator, .personal-indicator {
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .workspace-indicator h4, .personal-indicator h4 {
+            font-size: 1.3rem;
+        }
+        
+        .workspace-indicator .btn, .personal-indicator .btn {
+            padding: 0.6rem 1.2rem;
+            font-size: 0.9rem;
+        }
+        
+        .job-actions {
+            gap: 8px;
+        }
+        
+        .job-actions .btn-sm {
+            padding: 0.35rem 0.6rem;
+            font-size: 0.8rem;
+        }
+        
+        .card-header {
+            padding: 1rem 1.25rem;
+            font-size: 0.9rem;
+        }
+        
+        .card-body {
+            padding: 1.25rem;
+        }
+    }
+
+    /* 상태 필터 드롭다운 개선 */
+    #status-filter-dropdown .dropdown-item.active {
+        font-weight: 600;
+        background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+        color: white;
+    }
+
+    /* 처리 개요 카드 개선 */
+    #processing-summary {
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        border-radius: 12px;
+        padding: 1.5rem;
+    }
+    
+    #processing-summary p {
+        margin-bottom: 0.75rem;
+        font-size: 1rem;
+    }
+    
+    #processing-summary .fw-bold {
+        color: #007bff;
+        font-size: 1.1rem;
     }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="dashboard-container mt-4">
-    <header class="text-center mb-4">
-        <h1>Superduo Youtube</h1>
-        <p class="lead">Youtube 채널 관리 도구</p>
-    </header>
+    <!-- 워크스페이스 인디케이터 -->
+    {% if current_workspace %}
+    <div class="workspace-indicator">
+        <div class="workspace-content d-flex justify-content-between align-items-center">
+            <div class="flex-grow-1">
+                <h4 class="mb-2 d-flex align-items-center">
+                    <i class="fas fa-building me-3"></i> {{ current_workspace.name }}
+                </h4>
+                <p class="mb-0">
+                    현재 {{ current_workspace.name }} 워크스페이스에서 작업하고 있습니다.
+                </p>
+            </div>
+            <div class="ms-4">
+                <a href="{% url 'workspace:workspace_detail' workspace_id=current_workspace.workspace_id %}" 
+                   class="btn">
+                    <i class="fas fa-cog me-2"></i> 워크스페이스 관리
+                </a>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="personal-indicator">
+        <div class="workspace-content d-flex justify-content-between align-items-center">
+            <div class="flex-grow-1">
+                <h4 class="mb-2 d-flex align-items-center">
+                    <i class="fas fa-user me-3"></i> 개인 작업 공간
+                </h4>
+                <p class="mb-0">
+                    개인 모드에서 자신만의 작업을 관리하고 있습니다.
+                </p>
+            </div>
+            <div class="ms-4">
+                <a href="{% url 'workspace:workspace_list' %}" class="btn">
+                    <i class="fas fa-building me-2"></i> 워크스페이스 보기
+                </a>
+            </div>
+        </div>
+    </div>
+    {% endif %}
 
     <div class="row g-4">
         <!-- 좌측 패널: 그룹 및 최근 작업 -->
         <div class="col-lg-4">
             <div class="card mb-4">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <span>작업 그룹</span>
-                    <button type="button" class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#createGroupModal">
-                        <i class="fas fa-plus me-1"></i> 새 그룹 만들기
+                <div class="card-header d-flex justify-content-between align-items-center flex-wrap">
+                    <h6 class="mb-0 fw-semibold d-flex align-items-center flex-grow-1 me-3">
+                        {% if current_workspace %}
+                            <i class="fas fa-folder me-2"></i>{{ current_workspace.name }} 작업 그룹
+                        {% else %}
+                            <i class="fas fa-user-folder me-2"></i>개인 작업 그룹
+                        {% endif %}
+                    </h6>
+                    {% if can_create_group %}
+                    <button type="button" class="btn btn-sm btn-success flex-shrink-0" data-bs-toggle="modal" data-bs-target="#createGroupModal">
+                        <i class="fas fa-plus me-1"></i><span class="d-none d-lg-inline"> 새 그룹</span>
                     </button>
+                    {% else %}
+                    <small class="text-muted flex-shrink-0 badge bg-light">그룹 생성 권한 없음</small>
+                    {% endif %}
                 </div>
                 <div class="card-body" id="task-groups-list-container">
                     {% include 'video_processor/partials/task_group_list_partial.html' with task_groups=task_groups %}
@@ -135,7 +522,13 @@
 
             <div class="card">
                 <div class="card-header">
-                    최근 제출 작업
+                    <h6 class="mb-0 fw-semibold d-flex align-items-center">
+                        {% if current_workspace %}
+                            <i class="fas fa-clock me-2"></i>{{ current_workspace.name }} 최근 작업
+                        {% else %}
+                            <i class="fas fa-history me-2"></i>개인 최근 작업
+                        {% endif %}
+                    </h6>
                 </div>
                 <div class="card-body p-0" id="recent-jobs-list-container">
                     {% include 'video_processor/partials/recent_job_list_partial.html' with recent_jobs=recent_jobs %}
@@ -153,7 +546,7 @@
                 </li>
                 <li class="nav-item" role="presentation">
                     <button class="nav-link" id="manage-jobs-tab" data-bs-toggle="tab" data-bs-target="#manage-jobs-panel" type="button" role="tab" aria-controls="manage-jobs-panel" aria-selected="false">
-                        <i class="fas fa-list-check me-2"></i>작업 목록 및 관리
+                        <i class="fas fa-tasks me-2"></i>작업 목록 및 관리
                     </button>
                 </li>
             </ul>
@@ -163,7 +556,14 @@
                 <div class="tab-pane fade show active" id="submit-job-panel" role="tabpanel" aria-labelledby="submit-job-tab">
                     <div class="card form-section-card">
                         <div class="card-header">
-                            비디오 정보 설정 및 작업 제출
+                            <h6 class="mb-0 fw-semibold d-flex align-items-center">
+                                <i class="fas fa-paper-plane me-2"></i>
+                                {% if current_workspace %}
+                                    {{ current_workspace.name }} 워크스페이스에 작업 제출
+                                {% else %}
+                                    개인 작업 제출
+                                {% endif %}
+                            </h6>
                         </div>
                         <div class="card-body position-relative">
                             <div class="loading-overlay d-none">
@@ -252,11 +652,18 @@
             
                     <div class="card mt-4">
                         <div class="card-header">
-                            현재 처리 개요 (실시간 업데이트)
+                            <h6 class="mb-0 fw-semibold d-flex align-items-center">
+                                <i class="fas fa-chart-line me-2"></i>
+                                {% if current_workspace %}
+                                    {{ current_workspace.name }} 처리 개요 (실시간 업데이트)
+                                {% else %}
+                                    개인 작업 처리 개요 (실시간 업데이트)
+                                {% endif %}
+                            </h6>
                         </div>
                         <div class="card-body" id="processing-summary">
-                            <p>현재 처리 중/대기 중인 내 작업: <span class="fw-bold"><i class="fas fa-spinner fa-spin"></i></span> 개</p>
-                            <p>최근 24시간 내 완료된 내 작업: <span class="fw-bold"><i class="fas fa-spinner fa-spin"></i></span> 개</p>
+                            <p>현재 처리 중/대기 중인 작업: <span class="fw-bold"><i class="fas fa-spinner fa-spin"></i></span> 개</p>
+                            <p>최근 24시간 내 완료된 작업: <span class="fw-bold"><i class="fas fa-spinner fa-spin"></i></span> 개</p>
                             <p class="mb-0">
                                 <small class="text-muted">데이터를 불러오는 중...</small>
                             </p>
@@ -268,7 +675,9 @@
                 <div class="tab-pane fade" id="manage-jobs-panel" role="tabpanel" aria-labelledby="manage-jobs-tab">
                     <div class="card">
                         <div class="card-header d-flex justify-content-between align-items-center flex-wrap">
-                            <span class="me-auto">내 모든 작업 목록 (<span id="total-jobs-count-display">{{ request.user.processing_jobs.count }}</span>개)</span>
+                            <h6 class="mb-0 fw-semibold d-flex align-items-center me-auto">
+                                <i class="fas fa-tasks me-2"></i>내 모든 작업 목록 (<span id="total-jobs-count-display">{{ request.user.processing_jobs.count }}</span>개)
+                            </h6>
                             <div class="btn-toolbar mt-2 mt-md-0" role="toolbar">
                                 <form id="jobSearchForm" class="input-group input-group-sm me-2" role="search">
                                     <input type="search" id="jobSearchInput" class="form-control form-control-sm" placeholder="URL 또는 그룹명 검색..." aria-label="작업 검색">
@@ -455,8 +864,11 @@ document.addEventListener('DOMContentLoaded', function () {
             .then(data => {
                 if (data.success) {
                     showAlert('create-group-form-messages', '그룹이 성공적으로 생성되었습니다!', 'success');
-                    // 그룹 목록 동적 업데이트
-                    fetchTaskGroups(); 
+                    
+                    // 대시보드 전체 업데이트
+                    fetchTaskGroups();
+                    updateDashboard();
+                    
                     setTimeout(() => {
                         createGroupModal.hide();
                         createGroupForm.reset();
@@ -545,11 +957,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (data.success) {
                     showAlert('job-submit-form-messages', data.message || '작업이 성공적으로 제출되었습니다!', 'success');
                     jobSubmitForm.reset();
-                    fetchRecentJobs(true); // 작업 제출 성공 후 최근 작업 목록 업데이트
-                    const activeTab = document.querySelector('#dashboardMainTabs .nav-link.active');
-                    if (activeTab && activeTab.id === 'manage-jobs-tab') {
-                         loadJobs(currentJobPage, false); // 현재 페이지 유지하면서 내용 추가/갱신
-                    }
+                    
+                    // 대시보드 전체 업데이트
+                    updateDashboard();
+                    
                 } else if (data.errors) {
                     displayFormErrors(jobSubmitForm, data.errors);
                 } else {
@@ -596,8 +1007,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 const processingSummaryContainer = document.getElementById('processing-summary');
                 if (processingSummaryContainer) {
                     processingSummaryContainer.innerHTML = `
-                        <p>현재 처리 중/대기 중인 내 작업: <span class="fw-bold text-primary">${data.processing_jobs_count}</span> 개</p>
-                        <p>최근 24시간 내 완료된 내 작업: <span class="fw-bold text-success">${data.recent_completed_jobs_count}</span> 개</p>
+                        <p>현재 처리 중/대기 중인 작업: <span class="fw-bold text-primary">${data.processing_jobs_count}</span> 개</p>
+                        <p>최근 24시간 내 완료된 작업: <span class="fw-bold text-success">${data.recent_completed_jobs_count}</span> 개</p>
                         <p class="mb-0">
                             <small class="text-muted">
                                 실패한 작업: <span class="text-danger">${data.failed_jobs_count}</span>개 | 
@@ -672,7 +1083,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function loadJobs(page = 1, replaceCurrent = false) {
-        if (isLoadingJobs || (!replaceCurrent && !hasMoreJobs && page > 1) ) return;
+        if (isLoadingJobs || (!replaceCurrent && !hasMoreJobs && page > 1) ) return Promise.resolve();
         isLoadingJobs = true;
         currentJobPage = page;
 
@@ -695,7 +1106,7 @@ document.addEventListener('DOMContentLoaded', function () {
             queryParams += `&tag=${encodeURIComponent(currentSelectedTag)}`;
         }
         
-        fetch(`{% url 'video_processor:ajax_user_job_list' %}${queryParams}`, {
+        return fetch(`{% url 'video_processor:ajax_user_job_list' %}${queryParams}`, {
             headers: { 'X-Requested-With': 'XMLHttpRequest' }
         })
         .then(response => response.json())
@@ -788,49 +1199,21 @@ document.addEventListener('DOMContentLoaded', function () {
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    // 성공 시 버튼을 제거하고 상태 업데이트
+                    // 성공 시 즉시 상태 업데이트 및 애니메이션 시작
+                    updateJobCardStatus(jobId, 'PROCESSING', '처리 중');
+                    
+                    // 버튼을 제거
                     button.remove();
-                    // 작업 목록 새로고침
-                    loadJobs(currentJobPage, true);
-                    // 최근 작업 목록도 업데이트
-                    fetchRecentJobs(true);
                     
-                    // 성공 메시지 표시 (선택사항)
-                    const alertContainer = document.createElement('div');
-                    alertContainer.className = 'alert alert-success alert-dismissible fade show position-fixed';
-                    alertContainer.style.cssText = 'top: 20px; right: 20px; z-index: 9999; max-width: 300px;';
-                    alertContainer.innerHTML = `
-                        ${data.message}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                    `;
-                    document.body.appendChild(alertContainer);
+                    // 대시보드 업데이트
+                    updateDashboard();
                     
-                    // 3초 후 자동 제거
-                    setTimeout(() => {
-                        if (alertContainer.parentNode) {
-                            alertContainer.remove();
-                        }
-                    }, 3000);
+                    showNotification(data.message, 'success');
                 } else {
                     // 실패 시 버튼 복원
                     button.disabled = false;
                     button.innerHTML = originalContent;
-                    
-                    // 에러 메시지 표시
-                    const alertContainer = document.createElement('div');
-                    alertContainer.className = 'alert alert-danger alert-dismissible fade show position-fixed';
-                    alertContainer.style.cssText = 'top: 20px; right: 20px; z-index: 9999; max-width: 300px;';
-                    alertContainer.innerHTML = `
-                        ${data.message || '작업 시작에 실패했습니다.'}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                    `;
-                    document.body.appendChild(alertContainer);
-                    
-                    setTimeout(() => {
-                        if (alertContainer.parentNode) {
-                            alertContainer.remove();
-                        }
-                    }, 5000);
+                    showNotification(data.message || '작업 시작에 실패했습니다.', 'danger');
                 }
             })
             .catch(error => {
@@ -838,32 +1221,518 @@ document.addEventListener('DOMContentLoaded', function () {
                 // 에러 시 버튼 복원
                 button.disabled = false;
                 button.innerHTML = originalContent;
-                
-                // 에러 메시지 표시
-                const alertContainer = document.createElement('div');
-                alertContainer.className = 'alert alert-danger alert-dismissible fade show position-fixed';
-                alertContainer.style.cssText = 'top: 20px; right: 20px; z-index: 9999; max-width: 300px;';
-                alertContainer.innerHTML = `
-                    작업 시작 중 오류가 발생했습니다.
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                `;
-                document.body.appendChild(alertContainer);
-                
-                setTimeout(() => {
-                    if (alertContainer.parentNode) {
-                        alertContainer.remove();
+                showNotification('작업 시작 중 오류가 발생했습니다.', 'danger');
+            });
+        }
+        
+        // "재시도" 버튼 클릭 이벤트 처리
+        if (event.target.classList.contains('retry-job-btn') || event.target.closest('.retry-job-btn')) {
+            event.preventDefault();
+            const button = event.target.classList.contains('retry-job-btn') ? event.target : event.target.closest('.retry-job-btn');
+            const jobId = button.dataset.jobId;
+            const jobTitle = button.dataset.jobTitle || '작업';
+            
+            if (!jobId) return;
+            
+            // 확인 대화상자
+            if (!confirm(`'${jobTitle}' 작업을 재시도하시겠습니까?`)) return;
+            
+            // 버튼 비활성화 및 로딩 상태 표시
+            button.disabled = true;
+            const originalContent = button.innerHTML;
+            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 재시도 중...';
+            
+            fetch(`/video-processor/job/${jobId}/retry/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrftoken,
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => {
+                if (response.ok) {
+                    // 재시도 성공 시 상태 업데이트
+                    updateDashboard();
+                    showNotification(`'${jobTitle}' 작업 재시도가 요청되었습니다.`, 'success');
+                } else {
+                    throw new Error('재시도 요청 실패');
+                }
+            })
+            .catch(error => {
+                console.error('Error retrying job:', error);
+                // 에러 시 버튼 복원
+                button.disabled = false;
+                button.innerHTML = originalContent;
+                showNotification('작업 재시도 중 오류가 발생했습니다.', 'danger');
+            });
+        }
+        
+        // "삭제" 버튼 클릭 이벤트 처리
+        if (event.target.classList.contains('delete-job-btn') || event.target.closest('.delete-job-btn')) {
+            event.preventDefault();
+            const button = event.target.classList.contains('delete-job-btn') ? event.target : event.target.closest('.delete-job-btn');
+            const jobId = button.dataset.jobId;
+            const jobTitle = button.dataset.jobTitle || '작업';
+            
+            if (!jobId) return;
+            
+            // 확인 대화상자
+            if (!confirm(`'${jobTitle}' 작업을 삭제하시겠습니까?\n\n이 작업은 되돌릴 수 없습니다.`)) return;
+            
+            // 버튼 비활성화 및 로딩 상태 표시
+            button.disabled = true;
+            const originalContent = button.innerHTML;
+            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 삭제 중...';
+            
+            fetch(`/video-processor/job/${jobId}/delete/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrftoken,
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // 성공 시 해당 작업 카드를 DOM에서 제거
+                    const jobCard = button.closest('.col-md-6, .col-lg-4, .job-item, .card');
+                    if (jobCard) {
+                        jobCard.style.transition = 'all 0.3s ease';
+                        jobCard.style.opacity = '0';
+                        jobCard.style.transform = 'scale(0.9)';
+                        setTimeout(() => {
+                            jobCard.remove();
+                            
+                            // 작업 목록이 비어있는지 확인
+                            const remainingCards = jobListContainer.querySelectorAll('.col-md-6, .col-lg-4, .job-item, .card');
+                            if (remainingCards.length === 0 || (remainingCards.length === 1 && remainingCards[0].classList.contains('load-more-jobs-btn'))) {
+                                // 현재 페이지를 새로고침하여 빈 상태 메시지 표시
+                                loadJobs(currentJobPage, true);
+                            }
+                        }, 300);
                     }
-                }, 5000);
+                    
+                    // 대시보드 전체 업데이트
+                    updateDashboard();
+                    showNotification(data.message, 'success');
+                } else {
+                    // 실패 시 버튼 복원
+                    button.disabled = false;
+                    button.innerHTML = originalContent;
+                    showNotification(data.message || '작업 삭제에 실패했습니다.', 'danger');
+                }
+            })
+            .catch(error => {
+                console.error('Error deleting job:', error);
+                // 에러 시 버튼 복원
+                button.disabled = false;
+                button.innerHTML = originalContent;
+                showNotification('작업 삭제 중 오류가 발생했습니다.', 'danger');
             });
         }
     });
+    
+    // 최근 작업 목록에서도 삭제 버튼 이벤트 처리
+    if (recentJobsListContainer) {
+        recentJobsListContainer.addEventListener('click', function(event) {
+            // "재시도" 버튼 클릭 이벤트 처리
+            if (event.target.classList.contains('retry-job-btn') || event.target.closest('.retry-job-btn')) {
+                event.preventDefault();
+                const button = event.target.classList.contains('retry-job-btn') ? event.target : event.target.closest('.retry-job-btn');
+                const jobId = button.dataset.jobId;
+                const jobTitle = button.dataset.jobTitle || '작업';
+                
+                if (!jobId) return;
+                
+                // 확인 대화상자
+                if (!confirm(`'${jobTitle}' 작업을 재시도하시겠습니까?`)) return;
+                
+                // 버튼 비활성화 및 로딩 상태 표시
+                button.disabled = true;
+                const originalContent = button.innerHTML;
+                button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 재시도 중...';
+                
+                fetch(`/video-processor/job/${jobId}/retry/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': csrftoken,
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                .then(response => {
+                    if (response.ok) {
+                        // 재시도 성공 시 상태 업데이트
+                        updateDashboard();
+                        showNotification(`'${jobTitle}' 작업 재시도가 요청되었습니다.`, 'success');
+                    } else {
+                        throw new Error('재시도 요청 실패');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error retrying job:', error);
+                    // 에러 시 버튼 복원
+                    button.disabled = false;
+                    button.innerHTML = originalContent;
+                    showNotification('작업 재시도 중 오류가 발생했습니다.', 'danger');
+                });
+            }
+            
+            // "삭제" 버튼 클릭 이벤트 처리
+            if (event.target.classList.contains('delete-job-btn') || event.target.closest('.delete-job-btn')) {
+                event.preventDefault();
+                const button = event.target.classList.contains('delete-job-btn') ? event.target : event.target.closest('.delete-job-btn');
+                const jobId = button.dataset.jobId;
+                const jobTitle = button.dataset.jobTitle || '작업';
+                
+                if (!jobId) return;
+                
+                // 확인 대화상자
+                if (!confirm(`'${jobTitle}' 작업을 삭제하시겠습니까?\n\n이 작업은 되돌릴 수 없습니다.`)) return;
+                
+                // 버튼 비활성화 및 로딩 상태 표시
+                button.disabled = true;
+                const originalContent = button.innerHTML;
+                button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 삭제 중...';
+                
+                fetch(`/video-processor/job/${jobId}/delete/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': csrftoken,
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // 성공 시 해당 작업 항목을 DOM에서 제거
+                        const listItem = button.closest('.list-group-item');
+                        if (listItem) {
+                            listItem.style.transition = 'all 0.3s ease';
+                            listItem.style.opacity = '0';
+                            listItem.style.transform = 'translateX(-100%)';
+                            setTimeout(() => {
+                                listItem.remove();
+                                
+                                // 목록이 비어있는지 확인
+                                const remainingItems = recentJobsListContainer.querySelectorAll('.list-group-item');
+                                if (remainingItems.length === 0) {
+                                    recentJobsListContainer.innerHTML = '<p class="text-muted p-3">최근 제출된 작업이 없습니다.</p>';
+                                }
+                            }, 300);
+                        }
+                        
+                        // 대시보드 전체 업데이트
+                        updateDashboard();
+                        showNotification(data.message, 'success');
+                    } else {
+                        // 실패 시 버튼 복원
+                        button.disabled = false;
+                        button.innerHTML = originalContent;
+                        showNotification(data.message || '작업 삭제에 실패했습니다.', 'danger');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error deleting job:', error);
+                    // 에러 시 버튼 복원
+                    button.disabled = false;
+                    button.innerHTML = originalContent;
+                    showNotification('작업 삭제 중 오류가 발생했습니다.', 'danger');
+                });
+            }
+        });
+    }
+    
+    // 알림 표시 함수
+    function showNotification(message, type = 'info') {
+        // type에서 'alert-' 접두사가 있다면 제거
+        const cleanType = type.replace(/^alert-/, '');
+        
+        const alertContainer = document.createElement('div');
+        alertContainer.className = `alert alert-${cleanType} alert-dismissible fade show position-fixed`;
+        alertContainer.style.cssText = 'top: 20px; left: 50%; transform: translateX(-50%); z-index: 9999; max-width: 400px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);';
+        alertContainer.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        `;
+        document.body.appendChild(alertContainer);
+        
+        // 자동 제거 (성공: 3초, 에러: 5초)
+        const timeout = cleanType === 'success' ? 3000 : 5000;
+        setTimeout(() => {
+            if (alertContainer.parentNode) {
+                alertContainer.remove();
+            }
+        }, timeout);
+    }
+    
+    // 진행상태 애니메이션 관련 함수들
+    const progressAnimations = new Map(); // 작업 ID별 애니메이션 추적
+    
+    function startProgressAnimation(jobId, duration = 30000) {
+        // 기존 애니메이션이 있으면 중지
+        if (progressAnimations.has(jobId)) {
+            clearInterval(progressAnimations.get(jobId));
+        }
+        
+        const jobCard = document.querySelector(`[data-job-id="${jobId}"]`);
+        if (!jobCard) return;
+        
+        const progressContainer = jobCard.querySelector('.job-progress-container');
+        const progressBar = jobCard.querySelector('.job-progress-bar');
+        const progressPercentage = jobCard.querySelector('.job-progress-percentage');
+        
+        if (!progressContainer || !progressBar || !progressPercentage) return;
+        
+        // 진행 컨테이너 표시
+        progressContainer.style.display = 'block';
+        
+        let progress = 0;
+        const increment = 1; // 1%씩 증가
+        const interval = duration / 95; // 95%까지만 진행 (완료는 별도 처리)
+        
+        const animationInterval = setInterval(() => {
+            progress += increment;
+            if (progress >= 95) {
+                progress = 95; // 95%에서 멈춤
+                clearInterval(animationInterval);
+                progressAnimations.delete(jobId);
+            }
+            
+            progressBar.style.width = `${progress}%`;
+            progressBar.setAttribute('aria-valuenow', progress);
+            progressPercentage.textContent = `${Math.round(progress)}%`;
+        }, interval);
+        
+        progressAnimations.set(jobId, animationInterval);
+    }
+    
+    function completeProgressAnimation(jobId) {
+        // 기존 애니메이션 중지
+        if (progressAnimations.has(jobId)) {
+            clearInterval(progressAnimations.get(jobId));
+            progressAnimations.delete(jobId);
+        }
+        
+        const jobCard = document.querySelector(`[data-job-id="${jobId}"]`);
+        if (!jobCard) return;
+        
+        const progressContainer = jobCard.querySelector('.job-progress-container');
+        const progressBar = jobCard.querySelector('.job-progress-bar');
+        const progressPercentage = jobCard.querySelector('.job-progress-percentage');
+        const completionContainer = jobCard.querySelector('.job-completion-container');
+        
+        if (!progressBar || !progressPercentage) return;
+        
+        // 빠르게 100%로 완성
+        progressBar.style.width = '100%';
+        progressBar.setAttribute('aria-valuenow', 100);
+        progressPercentage.textContent = '100%';
+        
+        // 1초 후 완료 상태로 전환
+        setTimeout(() => {
+            if (progressContainer) progressContainer.style.display = 'none';
+            if (completionContainer) completionContainer.style.display = 'block';
+        }, 1000);
+    }
+    
+    function updateJobCardStatus(jobId, newStatus, newStatusDisplay) {
+        const jobCard = document.querySelector(`[data-job-id="${jobId}"]`);
+        if (!jobCard) return;
+        
+        // 작업 카드의 상태 업데이트
+        jobCard.setAttribute('data-job-status', newStatus);
+        
+        // 상태 배지 업데이트
+        const statusBadge = jobCard.querySelector('.job-status-badge');
+        if (statusBadge) {
+            statusBadge.textContent = newStatusDisplay;
+            statusBadge.className = 'badge float-end job-status-badge';
+            
+            if (newStatus === 'COMPLETED') {
+                statusBadge.classList.add('bg-success');
+            } else if (newStatus === 'PROCESSING' || newStatus === 'DOWNLOADING') {
+                statusBadge.classList.add('bg-primary');
+            } else if (newStatus === 'PENDING') {
+                statusBadge.classList.add('bg-secondary');
+            } else if (newStatus === 'FAILED') {
+                statusBadge.classList.add('bg-danger');
+            } else {
+                statusBadge.classList.add('bg-dark');
+            }
+        }
+        
+        // 진행상태에 따른 애니메이션 처리
+        if (newStatus === 'PROCESSING' || newStatus === 'DOWNLOADING') {
+            startProgressAnimation(jobId);
+        } else if (newStatus === 'COMPLETED') {
+            completeProgressAnimation(jobId);
+        } else {
+            // 기타 상태에서는 진행 바 숨김
+            const progressContainer = jobCard.querySelector('.job-progress-container');
+            const completionContainer = jobCard.querySelector('.job-completion-container');
+            if (progressContainer) progressContainer.style.display = 'none';
+            if (completionContainer) completionContainer.style.display = 'none';
+            
+            // 애니메이션 중지
+            if (progressAnimations.has(jobId)) {
+                clearInterval(progressAnimations.get(jobId));
+                progressAnimations.delete(jobId);
+            }
+        }
+    }
+    
+    // 기존 updateDashboard 함수 수정
+    function updateDashboard() {
+        // 현재 표시된 작업들의 상태와 진행상태 저장
+        const currentJobStates = new Map();
+        const currentProgressStates = new Map();
+        
+        document.querySelectorAll('[data-job-id]').forEach(card => {
+            const jobId = card.getAttribute('data-job-id');
+            const status = card.getAttribute('data-job-status');
+            currentJobStates.set(jobId, status);
+            
+            // 현재 진행상태도 저장
+            const progressBar = card.querySelector('.job-progress-bar');
+            const progressPercentage = card.querySelector('.job-progress-percentage');
+            if (progressBar && progressPercentage) {
+                const currentProgress = parseInt(progressBar.getAttribute('aria-valuenow')) || 0;
+                currentProgressStates.set(jobId, currentProgress);
+            }
+        });
+        
+        // 처리 개요 업데이트
+        fetchProcessingSummary();
+        // 최근 작업 목록 업데이트
+        fetchRecentJobs(true);
+        // 작업 목록 업데이트 (현재 페이지)
+        loadJobs(currentJobPage, true).then(() => {
+            // 상태 변경 감지 및 애니메이션 적용
+            document.querySelectorAll('[data-job-id]').forEach(card => {
+                const jobId = card.getAttribute('data-job-id');
+                const newStatus = card.getAttribute('data-job-status');
+                const oldStatus = currentJobStates.get(jobId);
+                const savedProgress = currentProgressStates.get(jobId) || 0;
+                
+                if (oldStatus && oldStatus !== newStatus) {
+                    // 상태가 변경된 경우
+                    const statusBadge = card.querySelector('.job-status-badge');
+                    const statusDisplay = statusBadge ? statusBadge.textContent : '';
+                    
+                    updateJobCardStatus(jobId, newStatus, statusDisplay);
+                } else if ((newStatus === 'PROCESSING' || newStatus === 'DOWNLOADING') && oldStatus === newStatus) {
+                    // 같은 처리 상태가 유지되는 경우 - 진행상태 복원
+                    if (!progressAnimations.has(jobId)) {
+                        // 애니메이션이 없으면 새로 시작하되, 저장된 진행상태부터 시작
+                        startProgressAnimationFromProgress(jobId, savedProgress);
+                    }
+                } else if (newStatus === 'PROCESSING' || newStatus === 'DOWNLOADING') {
+                    // 새로 추가된 작업이 처리 중인 경우
+                    if (!progressAnimations.has(jobId)) {
+                        startProgressAnimation(jobId);
+                    }
+                }
+            });
+        });
+    }
+    
+    function startProgressAnimationFromProgress(jobId, startProgress = 0, duration = 30000) {
+        // 기존 애니메이션이 있으면 중지
+        if (progressAnimations.has(jobId)) {
+            clearInterval(progressAnimations.get(jobId));
+        }
+        
+        const jobCard = document.querySelector(`[data-job-id="${jobId}"]`);
+        if (!jobCard) return;
+        
+        const progressContainer = jobCard.querySelector('.job-progress-container');
+        const progressBar = jobCard.querySelector('.job-progress-bar');
+        const progressPercentage = jobCard.querySelector('.job-progress-percentage');
+        
+        if (!progressContainer || !progressBar || !progressPercentage) return;
+        
+        // 진행 컨테이너 표시
+        progressContainer.style.display = 'block';
+        
+        // 시작 진행률 설정
+        let progress = Math.min(startProgress, 95); // 95% 이상은 95%로 제한
+        progressBar.style.width = `${progress}%`;
+        progressBar.setAttribute('aria-valuenow', progress);
+        progressPercentage.textContent = `${Math.round(progress)}%`;
+        
+        if (progress >= 95) {
+            // 이미 95% 이상이면 애니메이션 중단
+            return;
+        }
+        
+        const increment = 1; // 1%씩 증가
+        const remainingProgress = 95 - progress;
+        const interval = duration / remainingProgress; // 남은 시간에 따라 간격 조정
+        
+        const animationInterval = setInterval(() => {
+            progress += increment;
+            if (progress >= 95) {
+                progress = 95; // 95%에서 멈춤
+                clearInterval(animationInterval);
+                progressAnimations.delete(jobId);
+            }
+            
+            progressBar.style.width = `${progress}%`;
+            progressBar.setAttribute('aria-valuenow', progress);
+            progressPercentage.textContent = `${Math.round(progress)}%`;
+        }, interval);
+        
+        progressAnimations.set(jobId, animationInterval);
+    }
 
     // 초기 데이터 로드 (기존)
     fetchProcessingSummary();
     // fetchTaskGroups(); // 대시보드 로드 시 그룹 목록은 이미 context로 전달받으므로 초기 AJAX 호출 불필요. 생성/삭제 시에만 호출.
 
-    // 1초마다 처리 개요 업데이트
-    setInterval(fetchProcessingSummary, 5000);
+    // 이미 로드된 작업들 중 처리 중인 것들에 대해 애니메이션 시작
+    document.querySelectorAll('[data-job-status="PROCESSING"], [data-job-status="DOWNLOADING"]').forEach(card => {
+        const jobId = card.getAttribute('data-job-id');
+        if (jobId && !progressAnimations.has(jobId)) {
+            startProgressAnimation(jobId);
+        }
+    });
+
+    // 10초마다 처리 개요 업데이트
+    setInterval(fetchProcessingSummary, 10000);
+    
+    // 60초마다 최근 작업 목록 업데이트 (너무 자주 하지 않도록 30초에서 60초로 변경)
+    setInterval(() => {
+        fetchRecentJobs(false); // 스피너 없이 업데이트
+    }, 60000);
+    
+    // 45초마다 작업 목록 상태 체크 (새로운 간격 추가)
+    setInterval(() => {
+        if (document.querySelector('#manage-jobs-panel.active')) {
+            // 작업 관리 탭이 활성화된 경우에만 목록 갱신
+            loadJobs(currentJobPage, true);
+        }
+    }, 45000);
+
+    // 진행 중인 작업이 있는지 확인하고 더 자주 업데이트하는 함수
+    function hasProcessingJobs() {
+        return document.querySelectorAll('[data-job-status="PROCESSING"], [data-job-status="DOWNLOADING"]').length > 0;
+    }
+    
+    // 조건부 빠른 업데이트 (진행 중인 작업이 있을 때만)
+    setInterval(() => {
+        if (hasProcessingJobs()) {
+            // 진행 중인 작업이 있으면 더 자주 상태 확인
+            fetchProcessingSummary();
+            
+            // 15초마다 한 번씩 상태만 확인 (전체 갱신은 아님)
+            if (Math.random() < 0.3) { // 30% 확률로만 전체 갱신
+                updateDashboard();
+            }
+        }
+    }, 15000);
+    
+    // 기존 간격 유지
+    // 10초마다 처리 개요 업데이트
 
 });
 </script>

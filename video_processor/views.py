@@ -27,13 +27,70 @@ from .utils import parse_time_range, time_to_seconds, get_youtube_video_title # 
 
 logger = logging.getLogger(__name__)
 
-class TaskGroupListView(LoginRequiredMixin, ListView):
+class WorkspaceAwareMixin:
+    """현재 워크스페이스를 고려하는 믹스인"""
+    
+    def get_workspace_filtered_queryset(self, base_queryset):
+        """현재 워크스페이스에 따라 쿼리셋을 필터링"""
+        user = self.request.user
+        
+        if user.is_in_workspace_mode():
+            # 워크스페이스 모드: 현재 워크스페이스의 데이터만
+            return base_queryset.filter(
+                Q(workspace=user.current_workspace) |
+                Q(user=user, workspace=user.current_workspace)
+            )
+        else:
+            # 개인 모드: 워크스페이스 없는 개인 데이터만
+            return base_queryset.filter(
+                user=user,
+                workspace__isnull=True
+            )
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        user = self.request.user
+        if user.is_authenticated:
+            context['current_workspace'] = user.current_workspace
+            context['is_workspace_mode'] = user.is_in_workspace_mode()
+            context['is_personal_mode'] = user.is_in_personal_mode()
+        return context
+
+class TaskGroupListView(LoginRequiredMixin, WorkspaceAwareMixin, ListView):
     model = TaskGroup
     template_name = 'video_processor/taskgroup_list.html'
     context_object_name = 'task_groups'
 
     def get_queryset(self):
-        return TaskGroup.objects.filter(user=self.request.user, status='ACTIVE').order_by('-created_at')
+        user = self.request.user
+        
+        if user.is_in_workspace_mode():
+            # 워크스페이스 모드: 현재 워크스페이스의 그룹들만
+            return TaskGroup.objects.filter(
+                workspace=user.current_workspace,
+                status='ACTIVE'
+            ).order_by('-created_at')
+        else:
+            # 개인 모드: 워크스페이스 없는 개인 그룹들만
+            return TaskGroup.objects.filter(
+                user=user,
+                workspace__isnull=True,
+                status='ACTIVE'
+            ).order_by('-created_at')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        user = self.request.user
+        
+        if user.is_in_workspace_mode():
+            # 워크스페이스 모드에서는 워크스페이스 정보 표시
+            context['workspace_name'] = user.current_workspace.name
+            context['can_create_group'] = user.current_workspace.has_permission(user, 'edit')
+        else:
+            # 개인 모드에서는 항상 그룹 생성 가능
+            context['can_create_group'] = True
+            
+        return context
 
     def get(self, request, *args, **kwargs):
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.GET.get('partial') == 'true':
@@ -44,14 +101,37 @@ class TaskGroupListView(LoginRequiredMixin, ListView):
             return HttpResponse(html) # HTML 조각을 직접 반환
         return super().get(request, *args, **kwargs)
 
-class TaskGroupCreateView(LoginRequiredMixin, CreateView):
+class TaskGroupCreateView(LoginRequiredMixin, WorkspaceAwareMixin, CreateView):
     model = TaskGroup
     form_class = TaskGroupForm
     template_name = 'video_processor/taskgroup_form.html'
     success_url = reverse_lazy('video_processor:group_list') # 성공 시 그룹 목록으로
 
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['user'] = self.request.user
+        return kwargs
+
     def form_valid(self, form):
-        form.instance.user = self.request.user
+        user = self.request.user
+        form.instance.user = user
+        
+        # 현재 워크스페이스 모드에 따라 워크스페이스 설정
+        if user.is_in_workspace_mode():
+            # 워크스페이스 모드: 현재 워크스페이스로 설정
+            if not user.current_workspace.has_permission(user, 'edit'):
+                error_message = "현재 워크스페이스에 그룹을 생성할 권한이 없습니다."
+                if self.request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return JsonResponse({'success': False, 'message': error_message})
+                else:
+                    messages.error(self.request, error_message)
+                    return self.form_invalid(form)
+            
+            form.instance.workspace = user.current_workspace
+        else:
+            # 개인 모드: 워크스페이스 없이 생성
+            form.instance.workspace = None
+        
         if self.request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             self.object = form.save()
             return JsonResponse({'success': True, 'group_id': self.object.pk, 'name': self.object.name})
@@ -64,18 +144,48 @@ class TaskGroupCreateView(LoginRequiredMixin, CreateView):
             return JsonResponse({'success': False, 'errors': form.errors})
         return super().form_invalid(form)
 
-class TaskGroupDetailView(LoginRequiredMixin, DetailView):
+class TaskGroupDetailView(LoginRequiredMixin, WorkspaceAwareMixin, DetailView):
     model = TaskGroup
     template_name = 'video_processor/taskgroup_detail.html'
     context_object_name = 'group'
     pk_url_kwarg = 'group_id' # URL에서 group_id를 받음
 
     def get_queryset(self):
-        return TaskGroup.objects.filter(user=self.request.user)
+        user = self.request.user
+        
+        if user.is_in_workspace_mode():
+            # 워크스페이스 모드: 현재 워크스페이스의 그룹들만
+            return TaskGroup.objects.filter(
+                workspace=user.current_workspace,
+                status='ACTIVE'
+            )
+        else:
+            # 개인 모드: 워크스페이스 없는 개인 그룹들만
+            return TaskGroup.objects.filter(
+                user=user,
+                workspace__isnull=True,
+                status='ACTIVE'
+            )
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         group = self.object
+        user = self.request.user
+        
+        # 권한 체크
+        if user.is_in_workspace_mode():
+            # 워크스페이스 모드에서의 권한 체크
+            if group.workspace != user.current_workspace:
+                messages.error(self.request, "해당 그룹에 접근할 권한이 없습니다.")
+                return context
+            can_edit = user.current_workspace.has_permission(user, 'edit')
+        else:
+            # 개인 모드에서의 권한 체크
+            if group.user != user or group.workspace is not None:
+                messages.error(self.request, "해당 그룹에 접근할 권한이 없습니다.")
+                return context
+            can_edit = True
+        
         context['jobs'] = ProcessingJob.objects.filter(group=group).order_by('-created_at')
         # 그룹 내 대기 중인 작업 수 (auto_start=False인 PENDING 작업들)
         context['pending_jobs_count'] = ProcessingJob.objects.filter(
@@ -83,21 +193,160 @@ class TaskGroupDetailView(LoginRequiredMixin, DetailView):
             status='PENDING', 
             auto_start=False
         ).count()
+        # 권한 정보
+        context['can_edit_group'] = can_edit
         # 이 그룹에 새 Job을 추가하는 폼 (user와 group 인스턴스 전달)
-        context['job_form'] = JobAndSegmentForm(user=self.request.user, initial={'group': group})
+        context['job_form'] = JobAndSegmentForm(user=user, initial={'group': group})
         return context
 
-# Job 제출 뷰 (기존 SubmitDownloadView 대체 또는 확장)
-class JobSubmitView(LoginRequiredMixin, View):
+class UserJobListView(LoginRequiredMixin, WorkspaceAwareMixin, ListView):
+    model = ProcessingJob
+    context_object_name = 'jobs'
+    paginate_by = 10
+    valid_sort_fields = ['created_at', '-created_at', 'status', '-status', 'youtube_url', '-youtube_url']
+
+    def get_queryset(self):
+        user = self.request.user
+        
+        # 현재 워크스페이스 모드에 따라 기본 쿼리셋 생성
+        if user.is_in_workspace_mode():
+            # 워크스페이스 모드: 현재 워크스페이스의 작업들만
+            queryset = ProcessingJob.objects.filter(
+                Q(group__workspace=user.current_workspace) |
+                Q(user=user, group__workspace=user.current_workspace) |
+                Q(user=user, group__isnull=True, workspace=user.current_workspace)
+            )
+        else:
+            # 개인 모드: 워크스페이스 없는 개인 작업들만
+            queryset = ProcessingJob.objects.filter(
+                user=user,
+                workspace__isnull=True
+            )
+        
+        # 최근 작업 목록 요청인지 확인
+        is_recent_request = self.request.GET.get('recent') == 'true'
+        if is_recent_request:
+            limit = int(self.request.GET.get('limit', 10)) # 기본 10개
+            return queryset.order_by('-created_at')[:limit]
+
+        # 기존 필터링 및 정렬 로직 (최근 작업 요청이 아닐 때만 적용)
+        status_filter = self.request.GET.get('status')
+        if status_filter:
+            queryset = queryset.filter(status=status_filter)
+            
+        search_query = self.request.GET.get('search')
+        if search_query:
+            queryset = queryset.filter(
+                Q(youtube_url__icontains=search_query) |
+                Q(group__name__icontains=search_query) |
+                Q(tags__name__icontains=search_query)
+            ).distinct()
+            
+        tag_filter = self.request.GET.get('tag')
+        if tag_filter:
+            queryset = queryset.filter(tags__name__in=[tag_filter])
+            
+        sort_by = self.request.GET.get('sort_by', '-created_at')
+        if sort_by not in self.valid_sort_fields:
+            sort_by = '-created_at'
+        
+        queryset = queryset.order_by(sort_by)
+        if 'status' in sort_by: 
+            queryset = queryset.order_by(sort_by, '-created_at')
+            
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        is_recent_request = self.request.GET.get('recent') == 'true'
+        
+        if is_recent_request:
+            # jobs를 recent_jobs로 변경
+            jobs_list = context.pop(self.context_object_name, [])
+            context['recent_jobs'] = self.object_list  # 쿼리셋을 직접 사용
+        else:
+            # 일반 목록 요청 시 필요한 컨텍스트
+            context['job_status_choices'] = ProcessingJob.STATUS_CHOICES
+            context['current_search_query'] = self.request.GET.get('search', '')
+            context['current_status_filter'] = self.request.GET.get('status', '')
+            context['current_sort_by'] = self.request.GET.get('sort_by', '-created_at')
+            context['current_tag_filter'] = self.request.GET.get('tag', '')
+            
+            # 현재 워크스페이스 모드에 따른 태그 필터링
+            user = self.request.user
+            if user.is_in_workspace_mode():
+                user_tags = Tag.objects.filter(
+                    processingjob__group__workspace=user.current_workspace
+                ).distinct().order_by('name')
+            else:
+                user_tags = Tag.objects.filter(
+                    processingjob__user=user,
+                    processingjob__group__workspace__isnull=True
+                ).distinct().order_by('name')
+            context['available_tags'] = user_tags
+        return context
+
+    def get(self, request, *args, **kwargs):
+        if not request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'success': False, 'error': 'AJAX request required.'}, status=400)
+
+        self.object_list = self.get_queryset()
+        context = self.get_context_data()
+        
+        is_recent_request = request.GET.get('recent') == 'true'
+        
+        if is_recent_request:
+            # 최근 작업 목록 요청 시, 다른 partial 템플릿 사용 및 HTML 직접 반환
+            html = render_to_string('video_processor/partials/recent_job_list_partial.html', context, request=request)
+            return HttpResponse(html)
+        else:
+            # 기존 전체 작업 목록 로직 (JSON 응답)
+            page_obj = context.get('page_obj')
+            html = render_to_string('video_processor/partials/job_list_partial.html', context, request=request)
+            total_jobs_for_current_filter = page_obj.paginator.count if page_obj else self.object_list.count()
+
+            return JsonResponse({
+                'success': True, 
+                'html': html,
+                'has_next': page_obj.has_next() if page_obj else False,
+                'next_page_number': page_obj.next_page_number() if page_obj and page_obj.has_next() else None,
+                'current_page': page_obj.number if page_obj else 1,
+                'total_pages': page_obj.paginator.num_pages if page_obj else 1,
+                'total_jobs': total_jobs_for_current_filter
+            })
+
+class JobSubmitView(LoginRequiredMixin, WorkspaceAwareMixin, View):
     template_name = 'video_processor/job_submit_form.html'
     MAX_SEGMENTS_PER_JOB = 100 # 작업 당 최대 세그먼트 수 제한
 
     def get(self, request, group_id=None):
         initial_data = {}
         current_group_object = None
+        user = request.user
+        
         if group_id:
-            current_group_object = get_object_or_404(TaskGroup, pk=group_id, user=request.user)
-            initial_data['group'] = current_group_object
+            # 현재 워크스페이스 모드에 따른 그룹 접근 권한 체크
+            try:
+                if user.is_in_workspace_mode():
+                    # 워크스페이스 모드: 현재 워크스페이스의 그룹만 접근 가능
+                    current_group_object = TaskGroup.objects.get(
+                        pk=group_id,
+                        workspace=user.current_workspace,
+                        status='ACTIVE'
+                    )
+                else:
+                    # 개인 모드: 워크스페이스 없는 개인 그룹만 접근 가능
+                    current_group_object = TaskGroup.objects.get(
+                        pk=group_id,
+                        user=user,
+                        workspace__isnull=True,
+                        status='ACTIVE'
+                    )
+                
+                initial_data['group'] = current_group_object
+            except TaskGroup.DoesNotExist:
+                messages.error(request, "해당 그룹을 찾을 수 없거나 접근 권한이 없습니다.")
+                return redirect('video_processor:group_list')
         
         form = JobAndSegmentForm(user=request.user, initial=initial_data)
         
@@ -111,10 +360,34 @@ class JobSubmitView(LoginRequiredMixin, View):
     def post(self, request, group_id=None):
         form = JobAndSegmentForm(request.POST, user=request.user)
         is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+        user = request.user
         
         current_group_object = None
         if group_id:
-            current_group_object = get_object_or_404(TaskGroup, pk=group_id, user=request.user)
+            # 현재 워크스페이스 모드에 따른 그룹 접근 권한 체크
+            try:
+                if user.is_in_workspace_mode():
+                    # 워크스페이스 모드: 현재 워크스페이스의 그룹만 접근 가능
+                    current_group_object = TaskGroup.objects.get(
+                        pk=group_id,
+                        workspace=user.current_workspace,
+                        status='ACTIVE'
+                    )
+                else:
+                    # 개인 모드: 워크스페이스 없는 개인 그룹만 접근 가능
+                    current_group_object = TaskGroup.objects.get(
+                        pk=group_id,
+                        user=user,
+                        workspace__isnull=True,
+                        status='ACTIVE'
+                    )
+            except TaskGroup.DoesNotExist:
+                error_message = "해당 그룹을 찾을 수 없거나 접근 권한이 없습니다."
+                if is_ajax:
+                    return JsonResponse({'success': False, 'message': error_message})
+                else:
+                    messages.error(request, error_message)
+                    return redirect('video_processor:group_list')
 
         if form.is_valid():
             youtube_url = form.cleaned_data['youtube_url']
@@ -127,6 +400,26 @@ class JobSubmitView(LoginRequiredMixin, View):
 
             target_group = current_group_object or selected_group_from_form
             
+            # 워크스페이스 모드에서 그룹 검증
+            if user.is_in_workspace_mode() and target_group:
+                if target_group.workspace != user.current_workspace:
+                    error_message = "현재 워크스페이스와 다른 그룹에는 작업을 추가할 수 없습니다."
+                    if is_ajax:
+                        return JsonResponse({'success': False, 'message': error_message})
+                    else:
+                        messages.error(request, error_message)
+                        context = {'form': form, 'group_id': group_id, 'current_group_object': current_group_object}
+                        return render(request, self.template_name, context)
+            elif user.is_in_personal_mode() and target_group:
+                if target_group.workspace is not None:
+                    error_message = "개인 모드에서는 워크스페이스 그룹에 작업을 추가할 수 없습니다."
+                    if is_ajax:
+                        return JsonResponse({'success': False, 'message': error_message})
+                    else:
+                        messages.error(request, error_message)
+                        context = {'form': form, 'group_id': group_id, 'current_group_object': current_group_object}
+                        return render(request, self.template_name, context)
+            
             try:
                 with transaction.atomic(): # 트랜잭션 시작
                     # YouTube 제목 가져오기
@@ -137,6 +430,7 @@ class JobSubmitView(LoginRequiredMixin, View):
                         youtube_url=youtube_url, 
                         video_title=video_title,
                         group=target_group,
+                        workspace=user.current_workspace if user.is_in_workspace_mode() else None,
                         auto_start=auto_start
                     )
                     
@@ -254,108 +548,36 @@ class JobSubmitView(LoginRequiredMixin, View):
                 }
                 return render(request, self.template_name, context)
 
-class JobStatusView(LoginRequiredMixin, View):
+class JobStatusView(LoginRequiredMixin, WorkspaceAwareMixin, View):
     template_name = 'video_processor/job_status.html'
 
     def get(self, request, job_id):
         try:
-            # UUID 문자열로 직접 조회하여 쿼리 최적화
-            job = ProcessingJob.objects.get(job_id=job_id, user=request.user)
+            # UUID 문자열로 직접 조회
+            job = ProcessingJob.objects.get(job_id=job_id)
         except ProcessingJob.DoesNotExist:
             messages.error(request, "해당 작업을 찾을 수 없습니다.")
             return redirect(reverse('core:dashboard'))
         
+        # 워크스페이스별 접근 권한 체크
+        user = request.user
+        if not job.can_user_access(user):
+            messages.error(request, "해당 작업에 접근할 권한이 없습니다.")
+            return redirect(reverse('core:dashboard'))
+        
+        # 현재 워크스페이스 모드와 작업의 워크스페이스가 일치하는지 체크
+        if user.is_in_workspace_mode():
+            if job.workspace != user.current_workspace:
+                messages.error(request, "현재 워크스페이스의 작업이 아닙니다.")
+                return redirect(reverse('core:dashboard'))
+        else:  # 개인 모드
+            if job.workspace is not None:
+                messages.error(request, "개인 모드에서는 워크스페이스 작업에 접근할 수 없습니다.")
+                return redirect(reverse('core:dashboard'))
+        
         segments = job.segments.all().order_by('created_at')
         media_url = settings.MEDIA_URL if settings.MEDIA_URL.endswith('/') else settings.MEDIA_URL + '/'
         return render(request, self.template_name, {'job': job, 'segments': segments, 'media_url': media_url})
-
-class UserJobListView(LoginRequiredMixin, ListView):
-    model = ProcessingJob
-    context_object_name = 'jobs'
-    paginate_by = 10
-    valid_sort_fields = ['created_at', '-created_at', 'status', '-status', 'youtube_url', '-youtube_url']
-
-    def get_queryset(self):
-        queryset = ProcessingJob.objects.filter(user=self.request.user)
-        
-        # 최근 작업 목록 요청인지 확인
-        is_recent_request = self.request.GET.get('recent') == 'true'
-        if is_recent_request:
-            limit = int(self.request.GET.get('limit', 10)) # 기본 10개
-            return queryset.order_by('-created_at')[:limit]
-
-        # 기존 필터링 및 정렬 로직 (최근 작업 요청이 아닐 때만 적용)
-        status_filter = self.request.GET.get('status')
-        if status_filter:
-            queryset = queryset.filter(status=status_filter)
-            
-        search_query = self.request.GET.get('search')
-        if search_query:
-            queryset = queryset.filter(
-                Q(youtube_url__icontains=search_query) |
-                Q(group__name__icontains=search_query) |
-                Q(tags__name__icontains=search_query)
-            ).distinct()
-            
-        tag_filter = self.request.GET.get('tag')
-        if tag_filter:
-            queryset = queryset.filter(tags__name__in=[tag_filter])
-            
-        sort_by = self.request.GET.get('sort_by', '-created_at')
-        if sort_by not in self.valid_sort_fields:
-            sort_by = '-created_at'
-        
-        queryset = queryset.order_by(sort_by)
-        if 'status' in sort_by: 
-            queryset = queryset.order_by(sort_by, '-created_at')
-            
-        return queryset
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        is_recent_request = self.request.GET.get('recent') == 'true'
-        
-        if is_recent_request:
-            context.pop(self.context_object_name, []) # jobs를 recent_jobs로 변경
-        else:
-            # 일반 목록 요청 시 필요한 컨텍스트
-            context['job_status_choices'] = ProcessingJob.STATUS_CHOICES
-            context['current_search_query'] = self.request.GET.get('search', '')
-            context['current_status_filter'] = self.request.GET.get('status', '')
-            context['current_sort_by'] = self.request.GET.get('sort_by', '-created_at')
-            context['current_tag_filter'] = self.request.GET.get('tag', '')
-            user_tags = Tag.objects.filter(processingjob__user=self.request.user).distinct().order_by('name')
-            context['available_tags'] = user_tags
-        return context
-
-    def get(self, request, *args, **kwargs):
-        if not request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return JsonResponse({'success': False, 'error': 'AJAX request required.'}, status=400)
-
-        self.object_list = self.get_queryset()
-        context = self.get_context_data()
-        
-        is_recent_request = request.GET.get('recent') == 'true'
-        
-        if is_recent_request:
-            # 최근 작업 목록 요청 시, 다른 partial 템플릿 사용 및 HTML 직접 반환
-            html = render_to_string('video_processor/partials/recent_job_list_partial.html', context, request=request)
-            return HttpResponse(html)
-        else:
-            # 기존 전체 작업 목록 로직 (JSON 응답)
-            page_obj = context.get('page_obj')
-            html = render_to_string('video_processor/partials/job_list_partial.html', context, request=request)
-            total_jobs_for_current_filter = page_obj.paginator.count if page_obj else self.object_list.count()
-
-            return JsonResponse({
-                'success': True, 
-                'html': html,
-                'has_next': page_obj.has_next() if page_obj else False,
-                'next_page_number': page_obj.next_page_number() if page_obj and page_obj.has_next() else None,
-                'current_page': page_obj.number if page_obj else 1,
-                'total_pages': page_obj.paginator.num_pages if page_obj else 1,
-                'total_jobs': total_jobs_for_current_filter
-            })
 
 class RetryJobView(LoginRequiredMixin, View):
     def post(self, request, job_id):
@@ -393,14 +615,21 @@ class RetryJobView(LoginRequiredMixin, View):
 
 class DeleteJobView(LoginRequiredMixin, View):
     def post(self, request, job_id):
+        is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+        
         try:
             # UUID 문자열로 직접 조회하여 쿼리 최적화
             job = ProcessingJob.objects.get(job_id=job_id, user=request.user)
         except ProcessingJob.DoesNotExist:
-            messages.error(request, "해당 작업을 찾을 수 없습니다.")
-            return redirect(reverse('core:dashboard'))
+            error_message = "해당 작업을 찾을 수 없습니다."
+            if is_ajax:
+                return JsonResponse({'success': False, 'message': error_message})
+            else:
+                messages.error(request, error_message)
+                return redirect(reverse('core:dashboard'))
         
         job_id_str = str(job.job_id) # 삭제 메시지에 사용하기 위해 저장
+        job_title = job.video_title or f"작업 {job_id_str[:8]}"
 
         # TODO: 파일 시스템에서 관련 파일(원본, 세그먼트) 삭제 로직 추가 (선택 사항)
         # 예:
@@ -435,17 +664,27 @@ class DeleteJobView(LoginRequiredMixin, View):
             job.tags.clear()
             # 마지막으로 작업 삭제
             job.delete()
-            messages.success(request, f"작업(ID: {job_id_str})이 삭제되었습니다.")
+            
+            success_message = f"'{job_title}' 작업이 삭제되었습니다."
+            
+            if is_ajax:
+                return JsonResponse({
+                    'success': True, 
+                    'message': success_message,
+                    'job_id': job_id_str
+                })
+            else:
+                messages.success(request, success_message)
+                
         except Exception as e:
-            messages.error(request, f"작업 삭제 중 오류가 발생했습니다: {str(e)}")
+            error_message = f"작업 삭제 중 오류가 발생했습니다: {str(e)}"
+            if is_ajax:
+                return JsonResponse({'success': False, 'message': error_message})
+            else:
+                messages.error(request, error_message)
         
-        # 대시보드로 리디렉션 또는 작업 목록 페이지로 리디렉션
-        # 여기서는 대시보드 내 최근 작업 목록에서 호출된다고 가정하고, 대시보드로 리디렉션합니다.
-        # 실제로는 AJAX 응답 후 JS에서 해당 항목을 DOM에서 제거하는 것이 더 사용자 친화적입니다.
-        # 이 뷰가 AJAX 전용이 아니라면, 일반적인 리디렉션.
-        # dashboard.html의 최근 작업 목록이 AJAX로 업데이트되므로, 이 뷰가 직접 호출될 경우
-        # 대시보드 URL로 리디렉션합니다.
-        return redirect(reverse('core:dashboard')) # 또는 'video_processor:group_list' 등 적절한 곳으로
+        # AJAX가 아닌 경우 대시보드로 리디렉션
+        return redirect(reverse('core:dashboard'))
 
 class GroupBatchStartView(LoginRequiredMixin, View):
     """그룹 내 대기 중인(PENDING) 작업들을 일괄 처리 시작"""
@@ -495,6 +734,11 @@ class StartJobView(LoginRequiredMixin, View):
         # 작업이 PENDING 상태이고 auto_start=False인 경우에만 시작 가능
         if job.status == 'PENDING' and not job.auto_start:
             try:
+                # 상태를 즉시 PROCESSING으로 변경
+                job.status = 'PROCESSING'
+                job.save()
+                
+                # Celery 작업 시작
                 download_and_process_video_task.delay(job.job_id)
                 success_message = f"작업(ID: {job.job_id})이 시작되었습니다."
                 
@@ -503,6 +747,10 @@ class StartJobView(LoginRequiredMixin, View):
                 else:
                     messages.success(request, success_message)
             except Exception as e:
+                # 에러 발생 시 상태를 다시 PENDING으로 되돌림
+                job.status = 'PENDING'
+                job.save()
+                
                 error_message = f"작업 시작 중 오류가 발생했습니다: {str(e)}"
                 if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                     return JsonResponse({'success': False, 'message': error_message})
@@ -524,33 +772,50 @@ class StartJobView(LoginRequiredMixin, View):
 # (선택 사항) 사용자의 모든 Job 목록을 보여주는 뷰
 # class UserJobListView(View): ...
 
-class ProcessingInfoView(LoginRequiredMixin, View):
-    """사용자의 작업 처리 개요 정보를 AJAX로 반환하는 뷰"""
+class ProcessingInfoView(LoginRequiredMixin, WorkspaceAwareMixin, View):
+    """사용자의 작업 처리 개요 정보를 AJAX로 반환하는 뷰 (워크스페이스 인식)"""
     def get(self, request):
         user = request.user
         
+        # 현재 워크스페이스 모드에 따라 기본 쿼리셋 생성
+        if user.is_in_workspace_mode():
+            # 워크스페이스 모드: 현재 워크스페이스의 작업들만
+            base_queryset = ProcessingJob.objects.filter(
+                Q(group__workspace=user.current_workspace) |
+                Q(user=user, group__workspace=user.current_workspace) |
+                Q(user=user, group__isnull=True, workspace=user.current_workspace)
+            )
+        else:
+            # 개인 모드: 워크스페이스 없는 개인 작업들만
+            base_queryset = ProcessingJob.objects.filter(
+                user=user,
+                workspace__isnull=True
+            )
+        
         # 현재 처리 중/대기 중인 작업 수
-        processing_jobs_count = ProcessingJob.objects.filter(
-            user=user,
+        processing_jobs_count = base_queryset.filter(
             status__in=['PROCESSING', 'DOWNLOADING', 'PENDING']
         ).count()
         
         # 최근 24시간 내 완료된 작업 수
         twenty_four_hours_ago = timezone.now() - timedelta(hours=24)
-        recent_completed_jobs_count = ProcessingJob.objects.filter(
-            user=user,
+        recent_completed_jobs_count = base_queryset.filter(
             status='COMPLETED',
             updated_at__gte=twenty_four_hours_ago
         ).count()
         
         # 추가 정보: 실패한 작업 수
-        failed_jobs_count = ProcessingJob.objects.filter(
-            user=user,
+        failed_jobs_count = base_queryset.filter(
             status='FAILED'
         ).count()
         
         # 전체 작업 수
-        total_jobs_count = ProcessingJob.objects.filter(user=user).count()
+        total_jobs_count = base_queryset.count()
+        
+        # 컨텍스트 정보 추가
+        context_info = {
+            'workspace_name': user.current_workspace.name if user.is_in_workspace_mode() else '개인 모드'
+        }
         
         return JsonResponse({
             'success': True,
@@ -558,6 +823,7 @@ class ProcessingInfoView(LoginRequiredMixin, View):
             'recent_completed_jobs_count': recent_completed_jobs_count,
             'failed_jobs_count': failed_jobs_count,
             'total_jobs_count': total_jobs_count,
+            'context': context_info,
             'timestamp': timezone.now().isoformat()
         })
 

@@ -1,9 +1,9 @@
 {% if recent_jobs %}
     <ul class="list-group list-group-flush recent-jobs-list">
         {% for job in recent_jobs %}
-            <li class="list-group-item">
+            <li class="list-group-item" data-job-id="{{ job.job_id }}" data-job-status="{{ job.status }}">
                 <div class="d-flex justify-content-between align-items-start">
-                    <div class="flex-grow-1">
+                    <div class="flex-grow-1 pe-3">
                         <a href="{% url 'video_processor:job_status' job_id=job.job_id %}" title="{{ job.youtube_url }}" class="text-decoration-none">
                             {% if job.video_title %}
                                 {{ job.video_title|truncatechars:40 }}
@@ -17,9 +17,33 @@
                             {% if job.group %}{{ job.group.name|truncatechars:20 }} | {% endif %}
                             {{ job.created_at|date:"y-m-d H:i" }}
                         </small>
+                        
+                        {% comment %} 진행상태 표시 - 최근 작업 목록용 (간격 조정) {% endcomment %}
+                        {% if job.status == 'PROCESSING' or job.status == 'DOWNLOADING' %}
+                            <div class="job-progress-container mt-2" style="max-width: 90%;">
+                                <div class="progress" style="height: 4px;">
+                                    <div class="progress-bar progress-bar-striped progress-bar-animated job-progress-bar"
+                                         role="progressbar" style="width: 0%" aria-valuenow="0" 
+                                         aria-valuemin="0" aria-valuemax="100"></div>
+                                </div>
+                                <small class="text-muted job-progress-text">
+                                    {% if job.status == 'DOWNLOADING' %}다운로드 중...{% elif job.status == 'PROCESSING' %}처리 중...{% endif %}
+                                    <span class="job-progress-percentage">0%</span>
+                                </small>
+                            </div>
+                        {% elif job.status == 'COMPLETED' %}
+                            <div class="job-completion-container mt-2" style="max-width: 90%;">
+                                <div class="progress" style="height: 4px;">
+                                    <div class="progress-bar bg-success job-completion-bar"
+                                         role="progressbar" style="width: 100%" aria-valuenow="100" 
+                                         aria-valuemin="0" aria-valuemax="100"></div>
+                                </div>
+                                <small class="text-success"><i class="fas fa-check-circle me-1"></i>완료</small>
+                            </div>
+                        {% endif %}
                     </div>
-                    <div class="d-flex flex-column align-items-end">
-                        <span class="badge mb-2
+                    <div class="d-flex flex-column align-items-end flex-shrink-0" style="min-width: 120px;">
+                        <span class="badge mb-2 job-status-badge
                             {% if job.status == 'COMPLETED' %}bg-success
                             {% elif job.status == 'PROCESSING' or job.status == 'DOWNLOADING' %}bg-primary
                             {% elif job.status == 'PENDING' %}bg-secondary
@@ -51,22 +75,33 @@
                                         </a>
                                     {% endif %}
                                 {% endfor %}
+                                
+                                {# 완료된 작업 삭제 버튼 추가 #}
+                                <button type="button" 
+                                        class="btn btn-outline-danger btn-sm delete-job-btn" 
+                                        data-job-id="{{ job.job_id }}"
+                                        data-job-title="{% if job.video_title %}{{ job.video_title|truncatechars:20 }}{% else %}작업 {{ job.job_id|slice:':8' }}{% endif %}"
+                                        title="삭제">
+                                    <i class="fas fa-trash me-1"></i><span class="d-none d-sm-inline">삭제</span>
+                                </button>
                             </div>
                         {% elif job.status == 'FAILED' %}
                             {# 실패한 작업: 재시도 및 삭제 버튼 #}
                             <div class="btn-group btn-group-sm" role="group">
-                                <form method="post" action="{% url 'video_processor:job_retry' job_id=job.job_id %}" class="d-inline">
-                                    {% csrf_token %}
-                                    <button type="submit" class="btn btn-warning btn-sm" title="재시도" onclick="return confirm('이 작업을 재시도하시겠습니까?');">
-                                        <i class="fas fa-redo"></i><span class="d-none d-lg-inline ms-1">재시도</span>
-                                    </button>
-                                </form>
-                                <form method="post" action="{% url 'video_processor:job_delete' job_id=job.job_id %}" class="d-inline">
-                                    {% csrf_token %}
-                                    <button type="submit" class="btn btn-danger btn-sm" title="삭제" onclick="return confirm('이 작업을 삭제하시겠습니까?');">
-                                        <i class="fas fa-trash"></i><span class="d-none d-lg-inline ms-1">삭제</span>
-                                    </button>
-                                </form>
+                                <button type="button" 
+                                        class="btn btn-warning btn-sm retry-job-btn" 
+                                        data-job-id="{{ job.job_id }}"
+                                        data-job-title="{% if job.video_title %}{{ job.video_title|truncatechars:20 }}{% else %}작업 {{ job.job_id|slice:':8' }}{% endif %}"
+                                        title="재시도">
+                                    <i class="fas fa-redo"></i><span class="d-none d-lg-inline ms-1">재시도</span>
+                                </button>
+                                <button type="button" 
+                                        class="btn btn-danger btn-sm delete-job-btn" 
+                                        data-job-id="{{ job.job_id }}"
+                                        data-job-title="{% if job.video_title %}{{ job.video_title|truncatechars:20 }}{% else %}작업 {{ job.job_id|slice:':8' }}{% endif %}"
+                                        title="삭제">
+                                    <i class="fas fa-trash"></i><span class="d-none d-lg-inline ms-1">삭제</span>
+                                </button>
                             </div>
                         {% endif %}
                     </div>

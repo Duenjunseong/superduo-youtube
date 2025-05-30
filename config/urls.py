@@ -26,6 +26,7 @@ urlpatterns = [
     path("users/", include("users.urls", namespace="users")),
     path("downloads/", include("downloads.urls", namespace="downloads")),
     path("video-processor/", include("video_processor.urls", namespace="video_processor")),
+    path("workspaces/", include("workspace.urls", namespace="workspace")),
 ]
 
 # 개발 환경에서 미디어 파일 서빙 설정

@@ -3,8 +3,8 @@
 {% if jobs %}
     <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-3 job-cards-container">
         {% for job in jobs %}
-            <div classcol>
-                <div class="card h-100 job-card shadow-sm">
+            <div class="col">
+                <div class="card h-100 job-card shadow-sm" data-job-id="{{ job.job_id }}" data-job-status="{{ job.status }}">
                     {% comment %}
                     썸네일 (구현 예정, ProcessingJob 모델에 썸네일 필드 추가 필요)
                     {% if job.thumbnail_url %}
@@ -17,7 +17,7 @@
                     {% endcomment %}
                     <div class="card-header bg-light py-2 px-3">
                         <small class="text-muted">{{ job.created_at|date:"Y.m.d H:i" }}</small>
-                        <span class="badge float-end 
+                        <span class="badge float-end job-status-badge
                             {% if job.status == 'COMPLETED' %}bg-success
                             {% elif job.status == 'PROCESSING' or job.status == 'DOWNLOADING' %}bg-primary
                             {% elif job.status == 'PENDING' %}bg-secondary
@@ -54,14 +54,33 @@
                             </div>
                         {% endif %}
                         
-                        {% comment %} 진행 바 (필요시 추가) {% endcomment %}
-                        {% if job.status == 'PROCESSING' or job.status == 'DOWNLOADING' %}
-                            <div class="progress mt-2" style="height: 5px;">
-                                <div class="progress-bar progress-bar-striped progress-bar-animated"
-                                     role="progressbar" style="width: 50%" aria-valuenow="50" 
-                                     aria-valuemin="0" aria-valuemax="100"></div> {# 실제 진행률 반영 필요 #}
+                        {% comment %} 진행 바 - 개선된 버전 {% endcomment %}
+                        <div class="job-progress-container" style="{% if job.status != 'PROCESSING' and job.status != 'DOWNLOADING' %}display: none;{% endif %}">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <small class="text-muted job-progress-text">
+                                    {% if job.status == 'DOWNLOADING' %}다운로드 중...{% elif job.status == 'PROCESSING' %}처리 중...{% endif %}
+                                </small>
+                                <small class="text-muted job-progress-percentage">0%</small>
                             </div>
-                        {% endif %}
+                            <div class="progress" style="height: 8px;">
+                                <div class="progress-bar progress-bar-striped progress-bar-animated job-progress-bar"
+                                     role="progressbar" style="width: 0%" aria-valuenow="0" 
+                                     aria-valuemin="0" aria-valuemax="100"></div>
+                            </div>
+                        </div>
+                        
+                        {% comment %} 완료 상태 표시 {% endcomment %}
+                        <div class="job-completion-container" style="{% if job.status != 'COMPLETED' %}display: none;{% endif %}">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <small class="text-success"><i class="fas fa-check-circle me-1"></i>처리 완료</small>
+                                <small class="text-success">100%</small>
+                            </div>
+                            <div class="progress" style="height: 8px;">
+                                <div class="progress-bar bg-success job-completion-bar"
+                                     role="progressbar" style="width: 100%" aria-valuenow="100" 
+                                     aria-valuemin="0" aria-valuemax="100"></div>
+                            </div>
+                        </div>
                     </div>
                     <div class="card-footer bg-white py-2 px-3 job-actions border-top-0">
                         <div class="d-flex justify-content-between align-items-center flex-wrap gap-1">
@@ -90,26 +109,24 @@
                                 
                                 {% comment %} 재처리 버튼 - FAILED 상태일 때 활성화 {% endcomment %}
                                 {% if job.status == 'FAILED' %}
-                                    <form method="post" action="{% url 'video_processor:job_retry' job_id=job.job_id %}" class="d-inline">
-                                        {% csrf_token %}
-                                        <button type="submit" class="btn btn-sm btn-outline-secondary" 
-                                                title="재처리" 
-                                                onclick="return confirm('이 작업을 다시 시작하시겠습니까?');">
-                                            <i class="fas fa-redo"></i><span class="d-none d-xl-inline ms-1">재시도</span>
-                                        </button>
-                                    </form>
+                                    <button type="button" 
+                                            class="btn btn-sm btn-outline-secondary retry-job-btn" 
+                                            data-job-id="{{ job.job_id }}"
+                                            data-job-title="{% if job.video_title %}{{ job.video_title|truncatechars:30 }}{% else %}작업 {{ job.job_id|slice:':8' }}{% endif %}"
+                                            title="재처리">
+                                        <i class="fas fa-redo"></i><span class="d-none d-xl-inline ms-1">재시도</span>
+                                    </button>
                                 {% endif %}
                                 
-                                {% comment %} 삭제 버튼 - 처리 중이 아닐 때 활성화 {% endcomment %}
+                                {% comment %} AJAX 삭제 버튼 - 처리 중이 아닐 때 활성화 {% endcomment %}
                                 {% if job.status != 'PROCESSING' and job.status != 'DOWNLOADING' %}
-                                    <form method="post" action="{% url 'video_processor:job_delete' job_id=job.job_id %}" class="d-inline">
-                                        {% csrf_token %}
-                                        <button type="submit" class="btn btn-sm btn-outline-danger" 
-                                                title="삭제" 
-                                                onclick="return confirm('이 작업을 삭제하시겠습니까? 관련 파일도 함께 삭제됩니다.');">
-                                            <i class="fas fa-trash"></i><span class="d-none d-xl-inline ms-1">삭제</span>
-                                        </button>
-                                    </form>
+                                    <button type="button" 
+                                            class="btn btn-sm btn-outline-danger delete-job-btn" 
+                                            data-job-id="{{ job.job_id }}"
+                                            data-job-title="{% if job.video_title %}{{ job.video_title|truncatechars:30 }}{% else %}작업 {{ job.job_id|slice:':8' }}{% endif %}"
+                                            title="삭제">
+                                        <i class="fas fa-trash"></i><span class="d-none d-xl-inline ms-1">삭제</span>
+                                    </button>
                                 {% else %}
                                     <button class="btn btn-sm btn-outline-danger" disabled title="삭제 (처리 중인 작업은 삭제 불가)">
                                         <i class="fas fa-trash"></i><span class="d-none d-xl-inline ms-1">삭제</span>

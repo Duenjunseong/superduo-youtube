@@ -1,0 +1,244 @@
+{% extends "base.html" %}
+
+{% block title %}공개 워크스페이스{% endblock %}
+
+{% block extra_css %}
+<style>
+    .workspace-card {
+        transition: all 0.3s ease;
+        border: none;
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    
+    .workspace-card:hover {
+        transform: translateY(-8px);
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+    }
+    
+    .workspace-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 1.5rem;
+        text-align: center;
+        margin-bottom: 2rem;
+        border-radius: 16px;
+    }
+    
+    .workspace-stats {
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        padding: 0.75rem;
+        border-radius: 12px;
+        font-size: 0.85rem;
+    }
+    
+    .workspace-avatar {
+        width: 50px;
+        height: 50px;
+        border-radius: 12px;
+        background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: 700;
+        font-size: 1.2rem;
+        margin-bottom: 1rem;
+    }
+    
+    .search-container {
+        background: white;
+        border-radius: 16px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        margin-bottom: 2rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <!-- 페이지 헤더 -->
+    <div class="workspace-header">
+        <h1 class="mb-2">
+            <i class="fas fa-globe me-3"></i>공개 워크스페이스
+        </h1>
+        <p class="mb-0 opacity-90">참여할 수 있는 공개 워크스페이스를 찾아보세요</p>
+    </div>
+    
+    <!-- 검색 및 필터 -->
+    <div class="search-container">
+        <form method="get" class="row g-3 align-items-center">
+            <div class="col-md-6">
+                <div class="input-group">
+                    <span class="input-group-text">
+                        <i class="fas fa-search"></i>
+                    </span>
+                    <input type="text" 
+                           name="search" 
+                           class="form-control" 
+                           placeholder="워크스페이스 이름으로 검색..."
+                           value="{{ request.GET.search }}">
+                </div>
+            </div>
+            <div class="col-md-3">
+                <select name="sort" class="form-select">
+                    <option value="-created_at" {% if request.GET.sort == '-created_at' %}selected{% endif %}>
+                        최신순
+                    </option>
+                    <option value="name" {% if request.GET.sort == 'name' %}selected{% endif %}>
+                        이름순
+                    </option>
+                    <option value="-member_count" {% if request.GET.sort == '-member_count' %}selected{% endif %}>
+                        멤버 많은 순
+                    </option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="fas fa-search me-2"></i>검색
+                </button>
+            </div>
+        </form>
+    </div>
+    
+    <!-- 워크스페이스 목록 -->
+    <div class="row g-4">
+        {% for workspace in workspaces %}
+        <div class="col-lg-4 col-md-6">
+            <div class="card workspace-card h-100">
+                <div class="card-body text-center">
+                    {% if workspace.icon_url %}
+                    <img src="{{ workspace.icon_url }}" 
+                         alt="{{ workspace.name }} 아이콘" 
+                         class="workspace-avatar mx-auto"
+                         style="object-fit: cover;">
+                    {% else %}
+                    <div class="workspace-avatar mx-auto">
+                        {{ workspace.name.0|upper }}
+                    </div>
+                    {% endif %}
+                    
+                    <h5 class="card-title mb-2">{{ workspace.name }}</h5>
+                    <p class="card-text text-muted mb-3">
+                        {{ workspace.description|default:"설명이 없습니다."|truncatechars:60 }}
+                    </p>
+                    
+                    <div class="workspace-stats mb-3">
+                        <div class="row g-2 text-center">
+                            <div class="col-4">
+                                <div class="fw-bold text-primary">{{ workspace.memberships.count }}</div>
+                                <small class="text-muted">멤버</small>
+                            </div>
+                            <div class="col-4">
+                                <div class="fw-bold text-success">{{ workspace.task_groups.count }}</div>
+                                <small class="text-muted">그룹</small>
+                            </div>
+                            <div class="col-4">
+                                <div class="fw-bold text-info">{{ workspace.processing_jobs.count }}</div>
+                                <small class="text-muted">작업</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <span class="badge bg-light text-dark me-2">
+                            <i class="fas fa-user me-1"></i>{{ workspace.owner.username }}
+                        </span>
+                        <span class="badge bg-light text-dark">
+                            <i class="fas fa-calendar me-1"></i>{{ workspace.created_at|date:"Y-m-d" }}
+                        </span>
+                    </div>
+                </div>
+                
+                <div class="card-footer bg-transparent border-0 text-center pb-3">
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'workspace:workspace_detail' workspace_id=workspace.workspace_id %}" 
+                           class="btn btn-outline-primary">
+                            <i class="fas fa-eye me-2"></i>자세히 보기
+                        </a>
+                        
+                        {% if not workspace.is_user_member %}
+                        <form method="post" action="{% url 'workspace:join_workspace' workspace_id=workspace.workspace_id %}" class="d-inline">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-success w-100"
+                                    onclick="return confirm('이 워크스페이스에 참여하시겠습니까?')">
+                                <i class="fas fa-sign-in-alt me-2"></i>참여하기
+                            </button>
+                        </form>
+                        {% else %}
+                        <button class="btn btn-secondary w-100" disabled>
+                            <i class="fas fa-check me-2"></i>이미 참여 중
+                        </button>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12">
+            <div class="text-center py-5">
+                <i class="fas fa-search fa-3x text-muted mb-3"></i>
+                <h4 class="text-muted">워크스페이스를 찾을 수 없습니다</h4>
+                <p class="text-muted">
+                    {% if request.GET.search %}
+                        "{{ request.GET.search }}"에 대한 검색 결과가 없습니다.
+                    {% else %}
+                        아직 공개된 워크스페이스가 없습니다.
+                    {% endif %}
+                </p>
+                <a href="{% url 'workspace:workspace_create' %}" class="btn btn-primary">
+                    <i class="fas fa-plus me-2"></i>새 워크스페이스 만들기
+                </a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    
+    <!-- 페이지네이션 -->
+    {% if is_paginated %}
+    <nav aria-label="워크스페이스 목록 페이지네이션" class="mt-4">
+        <ul class="pagination justify-content-center">
+            {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?{% if request.GET.search %}search={{ request.GET.search }}&{% endif %}{% if request.GET.sort %}sort={{ request.GET.sort }}&{% endif %}page=1">
+                        <i class="fas fa-angle-double-left"></i>
+                    </a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?{% if request.GET.search %}search={{ request.GET.search }}&{% endif %}{% if request.GET.sort %}sort={{ request.GET.sort }}&{% endif %}page={{ page_obj.previous_page_number }}">
+                        <i class="fas fa-angle-left"></i>
+                    </a>
+                </li>
+            {% endif %}
+            
+            {% for num in page_obj.paginator.page_range %}
+                {% if page_obj.number == num %}
+                    <li class="page-item active">
+                        <span class="page-link">{{ num }}</span>
+                    </li>
+                {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                    <li class="page-item">
+                        <a class="page-link" href="?{% if request.GET.search %}search={{ request.GET.search }}&{% endif %}{% if request.GET.sort %}sort={{ request.GET.sort }}&{% endif %}page={{ num }}">{{ num }}</a>
+                    </li>
+                {% endif %}
+            {% endfor %}
+            
+            {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?{% if request.GET.search %}search={{ request.GET.search }}&{% endif %}{% if request.GET.sort %}sort={{ request.GET.sort }}&{% endif %}page={{ page_obj.next_page_number }}">
+                        <i class="fas fa-angle-right"></i>
+                    </a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?{% if request.GET.search %}search={{ request.GET.search }}&{% endif %}{% if request.GET.sort %}sort={{ request.GET.sort }}&{% endif %}page={{ page_obj.paginator.num_pages }}">
+                        <i class="fas fa-angle-double-right"></i>
+                    </a>
+                </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+</div>
+{% endblock %} 
