@@ -5,6 +5,9 @@ from video_processor.forms import JobAndSegmentForm, TaskGroupForm
 from video_processor.models import TaskGroup, ProcessingJob
 from django.urls import reverse_lazy
 from django.db.models import Q
+from django.contrib.auth.decorators import login_required
+from django.views.decorators.csrf import ensure_csrf_cookie
+from django.utils.decorators import method_decorator
 
 
 class IndexView(TemplateView):
@@ -17,6 +20,8 @@ class IndexView(TemplateView):
         return redirect(reverse_lazy('users:login')) # 인증 안된 사용자는 로그인 페이지로
 
 
+@method_decorator(ensure_csrf_cookie, name='get')
+@method_decorator(login_required, name='dispatch')
 class DashboardView(LoginRequiredMixin, View):
     """워크스페이스 인식 대시보드 뷰"""
     template_name = 'core/dashboard.html'

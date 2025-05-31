@@ -1,0 +1,1703 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_css %}
+<link href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/material_blue.css" rel="stylesheet">
+<style>
+    :root {
+        --primary-color: #4a90e2;
+        --primary-light: #6ba3f0;
+        --secondary-color: #5cb3cc;
+        --success-color: #5cb85c;
+        --warning-color: #f0ad4e;
+        --danger-color: #d9534f;
+        --light-bg: #f8f9fa;
+        --card-bg: rgba(255, 255, 255, 0.95);
+        --border-color: #e9ecef;
+        --text-muted: #6c757d;
+        --shadow-light: 0 2px 4px rgba(0, 0, 0, 0.1);
+        --shadow-medium: 0 4px 6px rgba(0, 0, 0, 0.1);
+        --border-radius: 8px;
+    }
+
+    body {
+        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        min-height: 100vh;
+    }
+
+    .page-container {
+        background: transparent;
+        min-height: 100vh;
+        padding: 2rem 0;
+    }
+
+    .main-card {
+        background: var(--card-bg);
+        border: 1px solid var(--border-color);
+        border-radius: var(--border-radius);
+        box-shadow: var(--shadow-medium);
+        padding: 2rem;
+        margin-bottom: 2rem;
+        backdrop-filter: blur(10px);
+    }
+
+    .tab-container {
+        margin-bottom: 2rem;
+    }
+
+    .nav-tabs {
+        border: none;
+        display: flex;
+        background: var(--light-bg);
+        border-radius: var(--border-radius);
+        padding: 4px;
+        box-shadow: var(--shadow-light);
+    }
+
+    .nav-tabs .nav-item {
+        flex: 1;
+    }
+
+    .nav-tabs .nav-link {
+        border: none;
+        border-radius: 6px;
+        color: var(--text-muted);
+        text-align: center;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        background: transparent;
+        margin: 0;
+    }
+
+    .nav-tabs .nav-link.active {
+        background: var(--primary-color);
+        color: white;
+        box-shadow: var(--shadow-light);
+    }
+
+    .nav-tabs .nav-link:hover:not(.active) {
+        background: rgba(74, 144, 226, 0.1);
+        color: var(--primary-color);
+    }
+
+    .controls-section {
+        background: var(--light-bg);
+        border-radius: var(--border-radius);
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+        border: 1px solid var(--border-color);
+        box-shadow: var(--shadow-light);
+    }
+
+    .form-control, .form-select {
+        background: white;
+        border: 1px solid var(--border-color);
+        border-radius: 6px;
+        padding: 0.75rem 1rem;
+        color: #333;
+        font-weight: 500;
+    }
+
+    .form-control:focus, .form-select:focus {
+        box-shadow: 0 0 0 0.25rem rgba(74, 144, 226, 0.25);
+        border-color: var(--primary-color);
+        background: white;
+    }
+
+    .btn-primary {
+        background: var(--primary-color);
+        border: 1px solid var(--primary-color);
+        border-radius: 6px;
+        padding: 0.75rem 1.5rem;
+        font-weight: 600;
+        color: white;
+        transition: all 0.3s ease;
+    }
+
+    .btn-primary:hover {
+        background: var(--primary-light);
+        border-color: var(--primary-light);
+        transform: translateY(-1px);
+        box-shadow: var(--shadow-medium);
+    }
+
+    .btn-outline-light {
+        border: 2px solid var(--border-color);
+        border-radius: 6px;
+        padding: 0.75rem 1.5rem;
+        font-weight: 600;
+        color: var(--text-muted);
+        background: white;
+        transition: all 0.3s ease;
+    }
+
+    .btn-outline-light:hover {
+        background: var(--light-bg);
+        border-color: var(--primary-color);
+        color: var(--primary-color);
+    }
+
+    .video-comparison-grid {
+        display: grid;
+        gap: 1.5rem;
+    }
+
+    .comparison-item {
+        background: white;
+        border-radius: var(--border-radius);
+        padding: 1.5rem;
+        box-shadow: var(--shadow-light);
+        transition: all 0.3s ease;
+        border: 1px solid var(--border-color);
+    }
+
+    .comparison-item:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-medium);
+    }
+
+    .video-pair {
+        display: grid;
+        grid-template-columns: 1fr auto 1fr;
+        gap: 1rem;
+        align-items: center;
+    }
+
+    .video-card {
+        background: var(--light-bg);
+        border-radius: var(--border-radius);
+        padding: 1rem;
+        transition: all 0.3s ease;
+        border: 1px solid var(--border-color);
+    }
+
+    .video-card:hover {
+        background: #e9ecef;
+        border-color: var(--primary-color);
+    }
+
+    .video-thumbnail {
+        width: 120px;
+        height: 68px;
+        border-radius: 6px;
+        object-fit: cover;
+        margin-bottom: 0.75rem;
+    }
+
+    .comparison-indicator {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.5rem;
+        min-width: 120px;
+    }
+
+    .rank-change-badge {
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+        font-weight: 700;
+        font-size: 0.875rem;
+        text-align: center;
+        min-width: 80px;
+    }
+
+    .rank-badge {
+        background: var(--primary-color);
+        color: white;
+        padding: 0.25rem 0.5rem;
+        border-radius: 12px;
+        font-size: 0.875rem;
+        font-weight: 600;
+    }
+
+    .rank-up {
+        background: var(--success-color);
+        color: white;
+    }
+
+    .rank-down {
+        background: var(--danger-color);
+        color: white;
+    }
+
+    .rank-same {
+        background: var(--text-muted);
+        color: white;
+    }
+
+    .rank-new {
+        background: var(--warning-color);
+        color: white;
+        animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+        100% { transform: scale(1); }
+    }
+
+    .view-change {
+        font-size: 0.875rem;
+        font-weight: 600;
+        margin-top: 0.25rem;
+    }
+
+    .view-increase {
+        color: var(--success-color);
+    }
+
+    .view-decrease {
+        color: var(--danger-color);
+    }
+
+    .favorite-btn {
+        position: absolute;
+        top: 0.75rem;
+        right: 0.75rem;
+        background: rgba(255, 255, 255, 0.9);
+        border: none;
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.3s ease;
+        box-shadow: var(--shadow-light);
+    }
+
+    .favorite-btn:hover {
+        background: white;
+        transform: scale(1.1);
+        box-shadow: var(--shadow-medium);
+    }
+
+    .favorite-btn.favorited {
+        background: var(--danger-color);
+        color: white;
+    }
+
+    .favorite-btn.favorited:hover {
+        background: #c9302c;
+        opacity: 0.9;
+    }
+
+    .favorites-section {
+        margin-top: 2rem;
+    }
+
+    .favorite-item {
+        background: white;
+        border-radius: var(--border-radius);
+        padding: 1rem;
+        margin-bottom: 1rem;
+        display: flex;
+        gap: 1rem;
+        align-items: flex-start;
+        transition: all 0.3s ease;
+        position: relative;
+        border: 1px solid var(--border-color);
+        box-shadow: var(--shadow-light);
+    }
+
+    .favorite-item:hover {
+        background: var(--light-bg);
+        transform: translateX(4px);
+        box-shadow: var(--shadow-medium);
+    }
+
+    .favorite-thumbnail {
+        width: 80px;
+        height: 45px;
+        border-radius: 6px;
+        object-fit: cover;
+        flex-shrink: 0;
+    }
+
+    .favorite-content {
+        flex-grow: 1;
+    }
+
+    .favorite-title {
+        font-weight: 600;
+        margin-bottom: 0.25rem;
+        color: #333;
+    }
+
+    .favorite-meta {
+        font-size: 0.875rem;
+        color: var(--text-muted);
+        margin-bottom: 0.5rem;
+    }
+
+    .favorite-note {
+        background: var(--light-bg);
+        border-radius: 6px;
+        padding: 0.5rem;
+        font-size: 0.875rem;
+        color: #555;
+        margin-top: 0.5rem;
+        border: 1px solid var(--border-color);
+    }
+
+    .favorite-actions {
+        display: flex;
+        gap: 0.5rem;
+        margin-top: 0.5rem;
+    }
+
+    .btn-sm {
+        padding: 0.375rem 0.75rem;
+        font-size: 0.875rem;
+        border-radius: 6px;
+    }
+
+    .loading-spinner {
+        text-align: center;
+        padding: 2rem;
+    }
+
+    .spinner-border {
+        color: var(--primary-color);
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 3rem 2rem;
+        color: var(--text-muted);
+    }
+
+    .empty-state i {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+        opacity: 0.5;
+        color: var(--primary-color);
+    }
+
+    .category-badge {
+        padding: 0.25rem 0.5rem;
+        border-radius: 12px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: white;
+        margin-left: 0.5rem;
+    }
+
+    .workspace-indicator {
+        background: white;
+        border: 1px solid var(--border-color);
+        border-radius: var(--border-radius);
+        padding: 0.75rem 1rem;
+        margin-bottom: 1.5rem;
+        color: var(--primary-color);
+        text-align: center;
+        font-weight: 600;
+        box-shadow: var(--shadow-light);
+    }
+
+    .page-title {
+        color: #333;
+        margin-bottom: 2rem;
+    }
+
+    .trend-matrix {
+        background: white;
+        border-radius: var(--border-radius);
+        box-shadow: var(--shadow-light);
+        overflow: hidden;
+        margin-bottom: 2rem;
+    }
+
+    .matrix-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.875rem;
+    }
+
+    .matrix-table th,
+    .matrix-table td {
+        padding: 0.75rem;
+        text-align: center;
+        border: 1px solid var(--border-color);
+        vertical-align: middle;
+    }
+
+    .matrix-table th {
+        background: var(--light-bg);
+        font-weight: 600;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+    }
+
+    .matrix-table .video-info-header {
+        background: var(--primary-color);
+        color: white;
+        min-width: 250px;
+        text-align: left;
+        position: sticky;
+        left: 0;
+        z-index: 11;
+    }
+
+    .matrix-table .video-info-cell {
+        background: white;
+        min-width: 250px;
+        max-width: 250px;
+        text-align: left;
+        position: sticky;
+        left: 0;
+        z-index: 9;
+        border-right: 2px solid var(--border-color);
+    }
+
+    .matrix-table .date-header {
+        min-width: 80px;
+        writing-mode: vertical-rl;
+        text-orientation: mixed;
+        font-size: 0.8rem;
+        background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-light) 100%);
+        color: white;
+    }
+
+    .matrix-table .rank-cell {
+        min-width: 80px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+
+    .matrix-table .rank-cell:hover {
+        background: var(--light-bg);
+        transform: scale(1.05);
+    }
+
+    .matrix-table .rank-cell.no-data {
+        background: #f8f9fa;
+        color: #6c757d;
+    }
+
+    .matrix-table .rank-cell.top-10 {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        color: white;
+        font-weight: 700;
+    }
+
+    .matrix-table .rank-cell.top-20 {
+        background: linear-gradient(135deg, #ffc107 0%, #fd7e14 100%);
+        color: white;
+        font-weight: 700;
+    }
+
+    .matrix-table .rank-cell.top-50 {
+        background: linear-gradient(135deg, #6f42c1 0%, #e83e8c 100%);
+        color: white;
+    }
+
+    .video-info-content {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .matrix-thumbnail {
+        width: 60px;
+        height: 34px;
+        border-radius: 4px;
+        object-fit: cover;
+        flex-shrink: 0;
+    }
+
+    .matrix-video-details {
+        flex-grow: 1;
+        min-width: 0;
+    }
+
+    .matrix-video-title {
+        font-weight: 600;
+        margin-bottom: 0.25rem;
+        font-size: 0.875rem;
+        line-height: 1.2;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .matrix-video-channel {
+        font-size: 0.75rem;
+        color: var(--text-muted);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .matrix-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+        align-items: center;
+    }
+
+    .matrix-favorite-btn {
+        background: none;
+        border: none;
+        color: var(--text-muted);
+        transition: all 0.3s ease;
+        padding: 0.25rem;
+        border-radius: 4px;
+    }
+
+    .matrix-favorite-btn:hover {
+        color: var(--danger-color);
+        background: rgba(220, 53, 69, 0.1);
+    }
+
+    .matrix-favorite-btn.favorited {
+        color: var(--danger-color);
+    }
+
+    .rank-change-indicator {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.25rem;
+        font-size: 0.75rem;
+        margin-top: 0.25rem;
+    }
+
+    .rank-change-up {
+        color: var(--success-color);
+    }
+
+    .rank-change-down {
+        color: var(--danger-color);
+    }
+
+    .rank-change-same {
+        color: var(--text-muted);
+    }
+
+    .matrix-container {
+        overflow-x: auto;
+        max-width: 100%;
+        border: 1px solid var(--border-color);
+        border-radius: var(--border-radius);
+    }
+
+    /* 반응형 매트릭스 */
+    @media (max-width: 768px) {
+        .page-container {
+            padding: 1rem 0;
+        }
+
+        .main-card {
+            padding: 1rem;
+            margin: 0.5rem;
+        }
+
+        .video-pair {
+            grid-template-columns: 1fr;
+            gap: 1rem;
+        }
+
+        .comparison-indicator {
+            order: -1;
+            flex-direction: row;
+            min-width: auto;
+        }
+
+        .controls-section {
+            padding: 1rem;
+        }
+
+        .matrix-table .video-info-cell {
+            min-width: 200px;
+            max-width: 200px;
+        }
+
+        .matrix-table .date-header {
+            min-width: 60px;
+            font-size: 0.7rem;
+        }
+
+        .matrix-table .rank-cell {
+            min-width: 60px;
+            padding: 0.5rem;
+        }
+
+        .matrix-thumbnail {
+            width: 40px;
+            height: 22px;
+        }
+
+        .matrix-video-title {
+            font-size: 0.8rem;
+        }
+
+        .matrix-video-channel {
+            font-size: 0.7rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-container">
+    <div class="container">
+        <!-- CSRF 토큰 추가 -->
+        {% csrf_token %}
+        
+        <!-- 워크스페이스 표시 -->
+        {% if is_workspace_mode %}
+            <div class="workspace-indicator">
+                <i class="fas fa-users me-2"></i>
+                {{ current_workspace.name }} 워크스페이스
+            </div>
+        {% else %}
+            <div class="workspace-indicator">
+                <i class="fas fa-user me-2"></i>
+                개인 모드
+            </div>
+        {% endif %}
+
+        <div class="main-card">
+            <h1 class="page-title">
+                <i class="fas fa-chart-line me-2"></i>
+                {{ page_title }}
+            </h1>
+
+            <!-- 탭 네비게이션 -->
+            <div class="tab-container">
+                <ul class="nav nav-tabs" id="mainTabs" role="tablist">
+                    <li role="presentation">
+                        <button class="nav-link active" id="comparison-tab" data-bs-toggle="tab" data-bs-target="#comparison" type="button" role="tab">
+                            <i class="fas fa-exchange-alt me-2"></i>
+                            날짜별 비교
+                        </button>
+                    </li>
+                    <li role="presentation">
+                        <button class="nav-link" id="favorites-tab" data-bs-toggle="tab" data-bs-target="#favorites" type="button" role="tab">
+                            <i class="fas fa-heart me-2"></i>
+                            즐겨찾기
+                        </button>
+                    </li>
+                    
+                </ul>
+            </div>
+
+            <!-- 탭 컨텐츠 -->
+            <div class="tab-content" id="mainTabContent">
+                <!-- 비교 탭 -->
+                <div class="tab-pane fade show active" id="comparison" role="tabpanel">
+                    <!-- 컨트롤 섹션 -->
+                    <div class="controls-section">
+                        <!-- 비교 모드 선택 -->
+                        <div class="row mb-3">
+                            <div class="col-12">
+                                <div class="btn-group w-100" role="group" aria-label="비교 모드">
+                                    <input type="radio" class="btn-check" name="comparisonMode" id="trendMode" value="trend" checked>
+                                    <label class="btn btn-outline-primary" for="trendMode">
+                                        <i class="fas fa-chart-line me-2"></i>최근 7일 트렌드
+                                    </label>
+                                    <input type="radio" class="btn-check" name="comparisonMode" id="dateMode" value="date">
+                                    <label class="btn btn-outline-primary" for="dateMode">
+                                        <i class="fas fa-calendar-alt me-2"></i>날짜별 비교
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 날짜별 비교 설정 (기본적으로 숨김) -->
+                        <div id="dateComparisonSettings" style="display: none;">
+                            <div class="row g-3">
+                                <div class="col-md-4">
+                                    <label class="form-label">첫 번째 날짜</label>
+                                    <input type="text" id="date1" class="form-control" placeholder="날짜 선택">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">두 번째 날짜 (선택)</label>
+                                    <input type="text" id="date2" class="form-control" placeholder="비교할 날짜 선택">
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label">결과 수</label>
+                                    <select id="comparisonLimit" class="form-select">
+                                        <option value="20">20개</option>
+                                        <option value="30">30개</option>
+                                        <option value="50">50개</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-2 d-flex align-items-end">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="includeMusicComparison">
+                                        <label class="form-check-label" for="includeMusicComparison">
+                                            음악/MV 포함
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row mt-3">
+                                <div class="col-12">
+                                    <button id="compareBtn" class="btn btn-primary me-2">
+                                        <i class="fas fa-search me-2"></i>
+                                        비교하기
+                                    </button>
+                                    <button id="clearComparisonBtn" class="btn btn-outline-light">
+                                        <i class="fas fa-eraser me-2"></i>
+                                        초기화
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 트렌드 모드 설정 -->
+                        <div id="trendSettings">
+                            <div class="row g-3">
+                                <div class="col-md-3">
+                                    <label class="form-label">기간</label>
+                                    <select id="trendDays" class="form-select">
+                                        <option value="7" selected>최근 7일</option>
+                                        <option value="5">최근 5일</option>
+                                        <option value="3">최근 3일</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">결과 수</label>
+                                    <select id="trendLimit" class="form-select">
+                                        <option value="20" selected>20개</option>
+                                        <option value="30">30개</option>
+                                        <option value="50">50개</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3 d-flex align-items-end">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="includeMusicTrend">
+                                        <label class="form-check-label" for="includeMusicTrend">
+                                            음악/MV 포함
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="col-md-3 d-flex align-items-end">
+                                    <button id="refreshTrendBtn" class="btn btn-outline-primary w-100">
+                                        <i class="fas fa-sync-alt me-2"></i>
+                                        새로고침
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 비교 결과 -->
+                    <div id="comparisonResults">
+                        <!-- 초기 로딩시 트렌드 데이터가 자동으로 로드됩니다 -->
+                    </div>
+                </div>
+
+                <!-- 즐겨찾기 탭 -->
+                <div class="tab-pane fade" id="favorites" role="tabpanel">
+                    <div class="favorites-section">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h3 class="text-white mb-0">
+                                <i class="fas fa-heart me-2"></i>
+                                내 즐겨찾기
+                            </h3>
+                            <button id="refreshFavoritesBtn" class="btn btn-outline-light">
+                                <i class="fas fa-sync-alt me-2"></i>
+                                새로고침
+                            </button>
+                        </div>
+                        
+                        <div id="favoritesResults">
+                            <div class="loading-spinner">
+                                <div class="spinner-border" role="status">
+                                    <span class="visually-hidden">로딩 중...</span>
+                                </div>
+                                <p class="text-white mt-2">즐겨찾기 목록을 불러오는 중...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 즐겨찾기 추가/편집 모달 -->
+<div class="modal fade" id="favoriteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">즐겨찾기 관리</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label for="favoriteNote" class="form-label">메모</label>
+                    <textarea class="form-control" id="favoriteNote" rows="3" placeholder="이 영상에 대한 메모를 입력하세요..."></textarea>
+                </div>
+                <div class="mb-3">
+                    <label for="favoriteTags" class="form-label">태그 (쉼표로 구분)</label>
+                    <input type="text" class="form-control" id="favoriteTags" placeholder="예: 트렌드, 마케팅, 참고">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
+                <button type="button" class="btn btn-primary" id="saveFavoriteBtn">저장</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/ko.js"></script>
+<script>
+$(document).ready(function() {
+    // 변수 및 상태
+    let currentFavoriteAction = null;
+    let currentVideoData = null;
+    let currentClickedBtn = null;  // 현재 클릭된 버튼 추가
+    let favoritesLoaded = false;
+    let currentMode = 'trend'; // 기본 모드는 트렌드
+
+    // Flatpickr 초기화
+    const date1Picker = flatpickr("#date1", {
+        locale: "ko",
+        dateFormat: "Y-m-d",
+        defaultDate: "today",
+        theme: "material_blue"
+    });
+
+    const date2Picker = flatpickr("#date2", {
+        locale: "ko",
+        dateFormat: "Y-m-d",
+        theme: "material_blue"
+    });
+
+    // 모드 전환 이벤트
+    $('input[name="comparisonMode"]').change(function() {
+        const mode = $(this).val();
+        currentMode = mode;
+        
+        if (mode === 'trend') {
+            $('#trendSettings').show();
+            $('#dateComparisonSettings').hide();
+            loadTrendData();
+        } else {
+            $('#trendSettings').hide();
+            $('#dateComparisonSettings').show();
+            // 날짜 모드로 전환시 결과 초기화
+            $('#comparisonResults').html(`
+                <div class="empty-state">
+                    <i class="fas fa-calendar-alt"></i>
+                    <h4>날짜를 선택하여 쇼츠 순위를 비교해보세요</h4>
+                    <p>두 날짜를 선택하면 순위 변동과 조회수 변화를 확인할 수 있습니다.</p>
+                </div>
+            `);
+        }
+    });
+
+    // 초기 트렌드 데이터 로드
+    loadTrendData();
+
+    // 탭 전환 이벤트
+    $('#favorites-tab').on('shown.bs.tab', function() {
+        if (!favoritesLoaded) {
+            loadFavorites();
+            favoritesLoaded = true;
+        }
+    });
+
+    // 트렌드 새로고침 버튼
+    $('#refreshTrendBtn').click(function() {
+        loadTrendData();
+    });
+
+    // 트렌드 설정 변경 이벤트
+    $('#trendDays, #trendLimit, #includeMusicTrend').change(function() {
+        if (currentMode === 'trend') {
+            loadTrendData();
+        }
+    });
+
+    // 비교 버튼 클릭 (날짜 모드용)
+    $('#compareBtn').click(function() {
+        const date1 = $('#date1').val();
+        const date2 = $('#date2').val();
+        const limit = $('#comparisonLimit').val();
+        const includeMusic = $('#includeMusicComparison').is(':checked');
+
+        if (!date1) {
+            showAlert('첫 번째 날짜를 선택해주세요.', 'warning');
+            return;
+        }
+
+        loadComparison(date1, date2, limit, includeMusic);
+    });
+
+    // 초기화 버튼
+    $('#clearComparisonBtn').click(function() {
+        $('#date1').val('');
+        $('#date2').val('');
+        $('#comparisonLimit').val('20');
+        $('#includeMusicComparison').prop('checked', false);
+        $('#comparisonResults').html(`
+            <div class="empty-state">
+                <i class="fas fa-calendar-alt"></i>
+                <h4>날짜를 선택하여 쇼츠 순위를 비교해보세요</h4>
+                <p>두 날짜를 선택하면 순위 변동과 조회수 변화를 확인할 수 있습니다.</p>
+            </div>
+        `);
+    });
+
+    // 즐겨찾기 새로고침
+    $('#refreshFavoritesBtn').click(function() {
+        loadFavorites();
+    });
+
+    // 즐겨찾기 저장
+    $('#saveFavoriteBtn').click(function() {
+        saveFavorite();
+    });
+
+    // 트렌드 데이터 로드 함수
+    function loadTrendData() {
+        const days = $('#trendDays').val();
+        const limit = $('#trendLimit').val();
+        const includeMusic = $('#includeMusicTrend').is(':checked');
+
+        $('#comparisonResults').html(`
+            <div class="loading-spinner">
+                <div class="spinner-border" role="status">
+                    <span class="visually-hidden">로딩 중...</span>
+                </div>
+                <p class="text-muted mt-2">최근 ${days}일 트렌드 매트릭스를 불러오는 중...</p>
+            </div>
+        `);
+
+        const params = new URLSearchParams({
+            days: days,
+            limit: limit,
+            include_music: includeMusic
+        });
+
+        $.get(`/trending/api/matrix/?${params.toString()}`)
+        .done(function(data) {
+            if (data.success) {
+                displayTrendMatrix(data, days);
+            } else {
+                showAlert('트렌드 데이터를 불러오는데 실패했습니다.', 'danger');
+            }
+        })
+        .fail(function() {
+            showAlert('서버 오류가 발생했습니다.', 'danger');
+        });
+    }
+
+    // 트렌드 매트릭스 표시
+    function displayTrendMatrix(data, days) {
+        if (!data.matrix_data || data.matrix_data.length === 0) {
+            $('#comparisonResults').html(`
+                <div class="empty-state">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <h4>트렌드 데이터가 없습니다</h4>
+                    <p>최근 ${days}일간의 쇼츠 데이터가 없거나 필터 조건에 맞는 영상이 없습니다.</p>
+                </div>
+            `);
+            return;
+        }
+
+        let html = `
+            <div class="mb-3">
+                <h4 class="text-primary">
+                    <i class="fas fa-chart-line me-2"></i>
+                    최근 ${days}일 쇼츠 순위 변화 매트릭스
+                </h4>
+                <p class="text-muted">각 영상의 날짜별 순위 변화를 한눈에 확인하세요</p>
+            </div>
+            <div class="matrix-container">
+                <table class="matrix-table">
+                    <thead>
+                        <tr>
+                            <th class="video-info-header">
+                                <i class="fas fa-video me-2"></i>
+                                영상 정보
+                            </th>
+        `;
+
+        // 날짜 헤더 생성
+        data.date_range.forEach(function(date) {
+            const dateObj = new Date(date);
+            const month = (dateObj.getMonth() + 1).toString().padStart(2, '0');
+            const day = dateObj.getDate().toString().padStart(2, '0');
+            html += `<th class="date-header">${month}/${day}</th>`;
+        });
+
+        html += `
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+
+        // 각 영상별 행 생성
+        data.matrix_data.forEach(function(videoData) {
+            html += `<tr>`;
+            
+            // 영상 정보 셀
+            html += `
+                <td class="video-info-cell">
+                    <div class="video-info-content">
+                        <img src="${videoData.video_info.thumbnail_url}" 
+                             alt="${videoData.video_info.title}" 
+                             class="matrix-thumbnail">
+                        <div class="matrix-video-details">
+                            <div class="matrix-video-title" title="${videoData.video_info.title}">
+                                ${videoData.video_info.title.length > 30 ? 
+                                  videoData.video_info.title.substring(0, 30) + '...' : 
+                                  videoData.video_info.title}
+                            </div>
+                            <div class="matrix-video-channel" title="${videoData.video_info.channel_title}">
+                                ${videoData.video_info.channel_title}
+                            </div>
+                            ${videoData.rank_change !== null ? 
+                                `<div class="rank-change-indicator">
+                                    ${videoData.rank_change > 0 ? 
+                                        `<span class="rank-change-up">
+                                            <i class="fas fa-arrow-up"></i> +${videoData.rank_change}
+                                        </span>` :
+                                        videoData.rank_change < 0 ?
+                                        `<span class="rank-change-down">
+                                            <i class="fas fa-arrow-down"></i> ${videoData.rank_change}
+                                        </span>` :
+                                        `<span class="rank-change-same">
+                                            <i class="fas fa-minus"></i> 변화없음
+                                        </span>`
+                                    }
+                                </div>` : ''
+                            }
+                        </div>
+                        <div class="matrix-actions">
+                            <button class="matrix-favorite-btn${videoData.video_info.is_favorite ? ' favorited' : ''}" 
+                                    data-youtube-id="${videoData.video_info.youtube_id}" 
+                                    ${videoData.video_info.favorite_id ? `data-favorite-id="${videoData.video_info.favorite_id}"` : ''}
+                                    title="즐겨찾기">
+                                <i class="${videoData.video_info.is_favorite ? 'fas' : 'far'} fa-heart"></i>
+                            </button>
+                            <a href="${videoData.video_info.youtube_url}" 
+                               target="_blank" 
+                               class="btn btn-sm btn-outline-primary"
+                               style="font-size: 0.7rem; padding: 0.25rem 0.5rem;">
+                                <i class="fab fa-youtube"></i>
+                            </a>
+                        </div>
+                    </div>
+                </td>
+            `;
+
+            // 각 날짜별 순위 셀
+            videoData.date_rankings.forEach(function(ranking) {
+                if (ranking.has_data) {
+                    let rankClass = '';
+                    if (ranking.rank <= 10) {
+                        rankClass = 'top-10';
+                    } else if (ranking.rank <= 20) {
+                        rankClass = 'top-20';
+                    } else if (ranking.rank <= 50) {
+                        rankClass = 'top-50';
+                    }
+
+                    html += `
+                        <td class="rank-cell ${rankClass}" 
+                            title="순위: ${ranking.rank}, 조회수: ${ranking.formatted_view_count}">
+                            #${ranking.rank}
+                        </td>
+                    `;
+                } else {
+                    html += `<td class="rank-cell no-data" title="데이터 없음">-</td>`;
+                }
+            });
+
+            html += `</tr>`;
+        });
+
+        html += `
+                    </tbody>
+                </table>
+            </div>
+            <div class="mt-3">
+                <small class="text-muted">
+                    <i class="fas fa-info-circle me-1"></i>
+                    색상별 의미: 
+                    <span class="badge" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%);">상위 10위</span>
+                    <span class="badge" style="background: linear-gradient(135deg, #ffc107 0%, #fd7e14 100%);">상위 20위</span>
+                    <span class="badge" style="background: linear-gradient(135deg, #6f42c1 0%, #e83e8c 100%);">상위 50위</span>
+                    <span class="badge bg-secondary">순위 밖</span>
+                </small>
+            </div>
+        `;
+
+        $('#comparisonResults').html(html);
+    }
+
+    // 비교 데이터 로드
+    function loadComparison(date1, date2, limit, includeMusic) {
+        $('#comparisonResults').html(`
+            <div class="loading-spinner">
+                <div class="spinner-border" role="status">
+                    <span class="visually-hidden">로딩 중...</span>
+                </div>
+                <p class="text-white mt-2">비교 데이터를 불러오는 중...</p>
+            </div>
+        `);
+
+        const params = new URLSearchParams({
+            date1: date1,
+            limit: limit,
+            include_music: includeMusic
+        });
+
+        if (date2) {
+            params.append('date2', date2);
+        }
+
+        $.get(`/trending/api/comparison/?${params.toString()}`)
+        .done(function(data) {
+            if (data.success) {
+                displayComparisonResults(data);
+            } else {
+                showAlert('비교 데이터를 불러오는데 실패했습니다.', 'danger');
+            }
+        })
+        .fail(function() {
+            showAlert('서버 오류가 발생했습니다.', 'danger');
+        });
+    }
+
+    // 비교 결과 표시
+    function displayComparisonResults(data) {
+        if (!data.comparison_data || data.comparison_data.length === 0) {
+            $('#comparisonResults').html(`
+                <div class="empty-state">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <h4>비교할 데이터가 없습니다</h4>
+                    <p>선택한 날짜에 쇼츠 데이터가 없거나 필터 조건에 맞는 영상이 없습니다.</p>
+                </div>
+            `);
+            return;
+        }
+
+        let html = '<div class="video-comparison-grid">';
+        
+        data.comparison_data.forEach(function(item, index) {
+            html += createComparisonItem(item, data.date2 !== null);
+        });
+        
+        html += '</div>';
+        $('#comparisonResults').html(html);
+    }
+
+    // 비교 아이템 생성
+    function createComparisonItem(item, hasTwoDates) {
+        const video1 = item.video1;
+        const video2 = item.video2;
+        
+        let html = '<div class="comparison-item position-relative">';
+        
+        if (hasTwoDates) {
+            // 두 날짜 비교
+            html += '<div class="video-pair">';
+            
+            // 첫 번째 비디오
+            if (video1) {
+                html += createVideoCard(video1, 'left');
+            } else {
+                html += '<div class="video-card text-center text-muted">데이터 없음</div>';
+            }
+            
+            // 비교 표시
+            html += '<div class="comparison-indicator">';
+            if (item.is_same_video) {
+                // 순위 변화
+                if (item.rank_change > 0) {
+                    html += `<div class="rank-change-badge rank-down">
+                        <i class="fas fa-arrow-down me-1"></i>
+                        ${item.rank_change}
+                    </div>`;
+                } else if (item.rank_change < 0) {
+                    html += `<div class="rank-change-badge rank-up">
+                        <i class="fas fa-arrow-up me-1"></i>
+                        ${Math.abs(item.rank_change)}
+                    </div>`;
+                } else {
+                    html += '<div class="rank-change-badge rank-same">유지</div>';
+                }
+                
+                // 조회수 변화
+                if (item.view_change) {
+                    const changeClass = item.view_change > 0 ? 'view-increase' : 'view-decrease';
+                    const changeIcon = item.view_change > 0 ? 'fa-plus' : 'fa-minus';
+                    html += `<div class="view-change ${changeClass}">
+                        <i class="fas ${changeIcon} me-1"></i>
+                        ${Math.abs(item.view_change).toLocaleString()}
+                    </div>`;
+                }
+            } else if (item.is_new) {
+                html += '<div class="rank-change-badge rank-new">NEW</div>';
+            } else {
+                html += '<div class="rank-change-badge rank-same">-</div>';
+            }
+            html += '</div>';
+            
+            // 두 번째 비디오
+            if (video2) {
+                html += createVideoCard(video2, 'right');
+            } else {
+                html += '<div class="video-card text-center text-muted">데이터 없음</div>';
+            }
+            
+            html += '</div>';
+        } else {
+            // 단일 날짜
+            if (video1) {
+                html += createVideoCard(video1, 'single');
+            }
+        }
+        
+        // 즐겨찾기 버튼 (video1 또는 video2가 있을 때)
+        const targetVideo = video1 || video2;
+        if (targetVideo) {
+            const isFavorited = targetVideo.is_favorite || false;
+            const favoriteId = targetVideo.favorite_id || '';
+            const heartIcon = isFavorited ? 'fas' : 'far';
+            const favoritedClass = isFavorited ? ' favorited' : '';
+            
+            html += `<button class="favorite-btn${favoritedClass}" 
+                data-youtube-id="${targetVideo.youtube_id}" 
+                ${favoriteId ? `data-favorite-id="${favoriteId}"` : ''} 
+                title="즐겨찾기">
+                <i class="${heartIcon} fa-heart"></i>
+            </button>`;
+        }
+        
+        html += '</div>';
+        return html;
+    }
+
+    // 비디오 카드 생성
+    function createVideoCard(video, position) {
+        const categoryColors = {
+            '음악': '#e91e63',
+            '게임': '#2196f3',
+            '엔터테인먼트': '#ff9800',
+            '스포츠': '#4caf50',
+            '뉴스': '#f44336',
+            '교육': '#9c27b0',
+            '과학 기술': '#00bcd4',
+            '코미디': '#ffeb3b',
+            '라이프스타일': '#795548',
+            '기타': '#607d8b'
+        };
+
+        const categoryColor = categoryColors[video.category] || '#607d8b';
+        
+        return `
+            <div class="video-card" data-youtube-id="${video.youtube_id}">
+                <img src="${video.thumbnail_url}" alt="${video.title}" class="video-thumbnail">
+                <div class="video-info">
+                    <h6 class="video-title mb-2" title="${video.title}">
+                        ${video.title.length > 50 ? video.title.substring(0, 50) + '...' : video.title}
+                    </h6>
+                    <div class="video-meta">
+                        <div class="d-flex align-items-center justify-content-between mb-2">
+                            <span class="rank-badge">#${video.trending_rank}</span>
+                            <span class="category-badge" style="background: ${categoryColor}">
+                                ${video.category}
+                            </span>
+                        </div>
+                        <div class="channel-name mb-1">
+                            <i class="fas fa-user me-1"></i>
+                            ${video.channel_title}
+                        </div>
+                        <div class="view-count mb-1">
+                            <i class="fas fa-eye me-1"></i>
+                            ${video.formatted_view_count} 조회
+                        </div>
+                        <div class="trending-date">
+                            <i class="fas fa-calendar me-1"></i>
+                            ${video.trending_date}
+                        </div>
+                    </div>
+                    <div class="video-actions mt-2">
+                        <a href="${video.youtube_url}" target="_blank" class="btn btn-sm btn-outline-primary">
+                            <i class="fab fa-youtube me-1"></i>
+                            시청하기
+                        </a>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    // 즐겨찾기 목록 로드
+    function loadFavorites() {
+        $('#favoritesResults').html(`
+            <div class="loading-spinner">
+                <div class="spinner-border" role="status">
+                    <span class="visually-hidden">로딩 중...</span>
+                </div>
+                <p class="text-white mt-2">즐겨찾기 목록을 불러오는 중...</p>
+            </div>
+        `);
+
+        $.get('/trending/api/favorites/')
+        .done(function(data) {
+            if (data.success) {
+                displayFavorites(data.favorites);
+            } else {
+                showAlert('즐겨찾기를 불러오는데 실패했습니다.', 'danger');
+            }
+        })
+        .fail(function() {
+            showAlert('서버 오류가 발생했습니다.', 'danger');
+        });
+    }
+
+    // 즐겨찾기 목록 표시
+    function displayFavorites(favorites) {
+        if (!favorites || favorites.length === 0) {
+            $('#favoritesResults').html(`
+                <div class="empty-state">
+                    <i class="fas fa-heart"></i>
+                    <h4>아직 즐겨찾기가 없습니다</h4>
+                    <p>관심 있는 쇼츠를 즐겨찾기에 추가해보세요.</p>
+                </div>
+            `);
+            return;
+        }
+
+        let html = '';
+        favorites.forEach(function(favorite) {
+            html += createFavoriteItem(favorite);
+        });
+        
+        $('#favoritesResults').html(html);
+    }
+
+    // 즐겨찾기 아이템 생성
+    function createFavoriteItem(favorite) {
+        const video = favorite.video;
+        const rankChangeIcon = favorite.rank_change > 0 ? 'fa-arrow-down text-danger' : 
+                              favorite.rank_change < 0 ? 'fa-arrow-up text-success' : 
+                              'fa-minus text-muted';
+        
+        return `
+            <div class="favorite-item">
+                <img src="${video.thumbnail_url}" alt="${video.title}" class="favorite-thumbnail">
+                <div class="favorite-content">
+                    <div class="favorite-title">${video.title}</div>
+                    <div class="favorite-meta">
+                        <span class="me-3">
+                            <i class="fas fa-user me-1"></i>
+                            ${video.channel_title}
+                        </span>
+                        <span class="me-3">
+                            <i class="fas fa-eye me-1"></i>
+                            ${video.formatted_view_count}
+                        </span>
+                        <span class="me-3">
+                            <i class="fas ${rankChangeIcon} me-1"></i>
+                            순위: ${favorite.favorited_rank} → ${video.trending_rank}
+                        </span>
+                        <span>
+                            <i class="fas fa-calendar me-1"></i>
+                            ${favorite.created_at}
+                        </span>
+                    </div>
+                    ${favorite.note ? `<div class="favorite-note">${favorite.note}</div>` : ''}
+                    ${favorite.tags && favorite.tags.length > 0 ? 
+                        `<div class="favorite-tags mt-2">
+                            ${favorite.tags.map(tag => `<span class="badge bg-secondary me-1">${tag}</span>`).join('')}
+                        </div>` : ''
+                    }
+                    <div class="favorite-actions">
+                        <a href="${video.youtube_url}" target="_blank" class="btn btn-sm btn-outline-primary">
+                            <i class="fab fa-youtube me-1"></i>
+                            시청하기
+                        </a>
+                        ${favorite.can_edit ? 
+                            `<button class="btn btn-sm btn-outline-secondary edit-favorite-btn" 
+                                data-favorite-id="${favorite.favorite_id}"
+                                data-note="${favorite.note || ''}"
+                                data-tags="${favorite.tags.join(', ')}">
+                                <i class="fas fa-edit me-1"></i>
+                                편집
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger delete-favorite-btn" 
+                                data-favorite-id="${favorite.favorite_id}">
+                                <i class="fas fa-trash me-1"></i>
+                                삭제
+                            </button>` : ''
+                        }
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    // 즐겨찾기 저장
+    function saveFavorite() {
+        const note = $('#favoriteNote').val().trim();
+        const tags = $('#favoriteTags').val().split(',').map(tag => tag.trim()).filter(tag => tag);
+        
+        let requestData = {note: note, tags: tags};
+        let url = '/trending/api/favorites/';
+        let method = 'POST';
+        
+        if (currentFavoriteAction === 'add') {
+            requestData.youtube_id = currentVideoData.youtube_id;
+        } else if (currentFavoriteAction === 'edit') {
+            requestData.favorite_id = currentVideoData.favorite_id;
+            method = 'PUT';
+        }
+        
+        // CSRF 토큰 가져오기
+        const csrfToken = $('[name=csrfmiddlewaretoken]').val();
+        
+        $.ajax({
+            url: url,
+            method: method,
+            data: JSON.stringify(requestData),
+            contentType: 'application/json',
+            headers: {
+                'X-CSRFToken': csrfToken
+            },
+            beforeSend: function() {
+                $('#saveFavoriteBtn').prop('disabled', true).text('저장 중...');
+            },
+            complete: function() {
+                $('#saveFavoriteBtn').prop('disabled', false).text('저장');
+            }
+        })
+        .done(function(data) {
+            if (data.success) {
+                $('#favoriteModal').modal('hide');
+                showAlert(data.message, 'success');
+                
+                if (currentFavoriteAction === 'add') {
+                    // 즐겨찾기 버튼 상태 업데이트 (일반 버튼 + 매트릭스 버튼 모두)
+                    const youtubeId = currentVideoData.youtube_id;
+                    const allBtns = $(`.favorite-btn[data-youtube-id="${youtubeId}"], .matrix-favorite-btn[data-youtube-id="${youtubeId}"]`);
+                    allBtns.each(function() {
+                        const btn = $(this);
+                        btn.addClass('favorited');
+                        btn.find('i').removeClass('far').addClass('fas');
+                        btn.attr('data-favorite-id', data.favorite_id);
+                    });
+                    
+                    // 저장된 클릭 버튼 초기화
+                    currentClickedBtn = null;
+                }
+                
+                // 즐겨찾기 탭이 활성화된 경우 목록 새로고침
+                if ($('#favorites-tab').hasClass('active')) {
+                    loadFavorites();
+                }
+                
+                // 즐겨찾기 상태만 업데이트 (깜빡임 방지)
+                setTimeout(function() {
+                    updateFavoriteStatusOnly();
+                }, 50);
+            } else {
+                showAlert(data.error || data.message || '저장에 실패했습니다.', 'danger');
+            }
+        })
+        .fail(function(xhr, status, error) {
+            console.error('즐겨찾기 저장 오류:', xhr.responseText);
+            if (xhr.responseJSON && xhr.responseJSON.error) {
+                showAlert(xhr.responseJSON.error, 'danger');
+            } else {
+                showAlert('서버 오류가 발생했습니다.', 'danger');
+            }
+        });
+    }
+
+    // 즐겨찾기 제거
+    function removeFavorite(favoriteId, clickedBtn = null) {
+        const csrfToken = $('[name=csrfmiddlewaretoken]').val();
+        
+        $.ajax({
+            url: '/trending/api/favorites/',
+            method: 'DELETE',
+            data: JSON.stringify({favorite_id: favoriteId}),
+            contentType: 'application/json',
+            headers: {
+                'X-CSRFToken': csrfToken
+            }
+        })
+        .done(function(data) {
+            if (data.success) {
+                showAlert(data.message, 'success');
+                
+                if (clickedBtn) {
+                    // 클릭된 버튼의 YouTube ID 가져오기
+                    const youtubeId = clickedBtn.data('youtube-id');
+                    
+                    // 같은 YouTube ID를 가진 모든 즐겨찾기 버튼 업데이트
+                    const allBtns = $(`.favorite-btn[data-youtube-id="${youtubeId}"], .matrix-favorite-btn[data-youtube-id="${youtubeId}"]`);
+                    allBtns.each(function() {
+                        const btn = $(this);
+                        btn.removeClass('favorited');
+                        btn.find('i').removeClass('fas').addClass('far');
+                        btn.removeAttr('data-favorite-id');
+                    });
+                }
+                
+                // 즐겨찾기 탭이 활성화된 경우 목록 새로고침
+                if ($('#favorites-tab').hasClass('active')) {
+                    loadFavorites();
+                }
+                
+                // 즐겨찾기 상태만 업데이트 (깜빡임 방지)
+                setTimeout(function() {
+                    updateFavoriteStatusOnly();
+                }, 50);
+            } else {
+                showAlert(data.error || data.message || '삭제에 실패했습니다.', 'danger');
+            }
+        })
+        .fail(function(xhr, status, error) {
+            console.error('즐겨찾기 삭제 오류:', xhr.responseText);
+            if (xhr.responseJSON && xhr.responseJSON.error) {
+                showAlert(xhr.responseJSON.error, 'danger');
+            } else {
+                showAlert('서버 오류가 발생했습니다.', 'danger');
+            }
+        });
+    }
+
+    // 알림 표시
+    function showAlert(message, type) {
+        const alertClass = `alert-${type}`;
+        const alertHtml = `
+            <div class="alert ${alertClass} alert-dismissible fade show position-fixed" 
+                 style="top: 20px; right: 20px; z-index: 9999; min-width: 300px;" role="alert">
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        `;
+        
+        $('body').append(alertHtml);
+        
+        // 3초 후 자동 제거
+        setTimeout(function() {
+            $('.alert').fadeOut();
+        }, 3000);
+    }
+
+    // 즐겨찾기 상태만 업데이트 (깜빡임 방지)
+    function updateFavoriteStatusOnly() {
+        // 현재 화면에 표시된 모든 YouTube ID 수집
+        const youtubeIds = [];
+        $('.favorite-btn, .matrix-favorite-btn').each(function() {
+            const youtubeId = $(this).data('youtube-id');
+            if (youtubeId && youtubeIds.indexOf(youtubeId) === -1) {
+                youtubeIds.push(youtubeId);
+            }
+        });
+        
+        if (youtubeIds.length === 0) {
+            return;
+        }
+        
+        // CSRF 토큰 가져오기
+        const csrfToken = $('[name=csrfmiddlewaretoken]').val();
+        
+        // 배치로 즐겨찾기 상태 조회
+        $.ajax({
+            url: '/trending/api/favorites/batch-status/',
+            method: 'POST',
+            data: JSON.stringify({youtube_ids: youtubeIds}),
+            contentType: 'application/json',
+            headers: {
+                'X-CSRFToken': csrfToken
+            }
+        })
+        .done(function(data) {
+            if (data.success) {
+                // 각 버튼의 상태 업데이트
+                Object.keys(data.favorite_status).forEach(function(youtubeId) {
+                    const status = data.favorite_status[youtubeId];
+                    const btns = $(`.favorite-btn[data-youtube-id="${youtubeId}"], .matrix-favorite-btn[data-youtube-id="${youtubeId}"]`);
+                    
+                    btns.each(function() {
+                        const btn = $(this);
+                        if (status.is_favorite) {
+                            btn.addClass('favorited');
+                            btn.find('i').removeClass('far').addClass('fas');
+                            btn.attr('data-favorite-id', status.favorite_id);
+                        } else {
+                            btn.removeClass('favorited');
+                            btn.find('i').removeClass('fas').addClass('far');
+                            btn.removeAttr('data-favorite-id');
+                        }
+                    });
+                });
+            }
+        })
+        .fail(function(xhr, status, error) {
+            console.error('즐겨찾기 상태 업데이트 오류:', xhr.responseText);
+        });
+    }
+
+    // 즐겨찾기 버튼 클릭 이벤트 (기존 + 매트릭스)
+    $(document).on('click', '.favorite-btn, .matrix-favorite-btn', function(e) {
+        e.stopPropagation();
+        
+        const btn = $(this);
+        const youtubeId = btn.data('youtube-id');
+        const favoriteId = btn.data('favorite-id');
+        
+        if (btn.hasClass('favorited')) {
+            // 즐겨찾기 제거
+            removeFavorite(favoriteId, btn);
+        } else {
+            // 즐겨찾기 추가
+            currentVideoData = {youtube_id: youtubeId};
+            currentFavoriteAction = 'add';
+            currentClickedBtn = btn;  // 클릭된 버튼 저장
+            
+            // 모달 초기화
+            $('#favoriteNote').val('');
+            $('#favoriteTags').val('');
+            $('#favoriteModal').modal('show');
+        }
+    });
+
+    // 즐겨찾기 편집 버튼
+    $(document).on('click', '.edit-favorite-btn', function() {
+        const favoriteId = $(this).data('favorite-id');
+        const note = $(this).data('note');
+        const tags = $(this).data('tags');
+        
+        currentFavoriteAction = 'edit';
+        currentVideoData = {favorite_id: favoriteId};
+        
+        $('#favoriteNote').val(note);
+        $('#favoriteTags').val(tags);
+        $('#favoriteModal').modal('show');
+    });
+
+    // 즐겨찾기 삭제 버튼
+    $(document).on('click', '.delete-favorite-btn', function() {
+        const favoriteId = $(this).data('favorite-id');
+        
+        if (confirm('이 즐겨찾기를 삭제하시겠습니까?')) {
+            removeFavorite(favoriteId);
+        }
+    });
+});
+</script>
+{% endblock %} 

@@ -14,6 +14,7 @@ from pathlib import Path
 import os
 from decouple import config, Csv
 import dj_database_url
+from celery.schedules import crontab
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -52,6 +53,7 @@ INSTALLED_APPS = [
     "downloads.apps.DownloadsConfig",
     "video_processor",
     "workspace",
+    "youtube_trending",
 ]
 
 if DEBUG:
@@ -268,6 +270,13 @@ if not DEBUG:
     SECURE_CONTENT_TYPE_NOSNIFF = True
     X_FRAME_OPTIONS = 'DENY'
 
+# CSRF 설정 (JavaScript에서 접근 가능하도록)
+CSRF_USE_SESSIONS = False  # 쿠키 사용
+CSRF_COOKIE_NAME = 'csrftoken'
+CSRF_COOKIE_HTTPONLY = False  # JavaScript에서 접근 가능하도록
+CSRF_COOKIE_SAMESITE = 'Lax'
+CSRF_TRUSTED_ORIGINS = []
+
 # 파일 업로드 설정
 FILE_UPLOAD_MAX_MEMORY_SIZE = 5000 * 1024 * 1024  # 5000MB
 DATA_UPLOAD_MAX_MEMORY_SIZE = 5000 * 1024 * 1024
@@ -308,3 +317,34 @@ if 'runserver' in sys.argv or 'shell' in sys.argv:
         'handlers': [],
         'propagate': False,
     }
+
+# YouTube API 설정
+YOUTUBE_API_KEY = config('YOUTUBE_API_KEY', default='')
+YOUTUBE_API_SERVICE_NAME = 'youtube'
+YOUTUBE_API_VERSION = 'v3'
+
+# YouTube 트렌딩 설정
+YOUTUBE_TRENDING_REGION = 'KR'  # 대한민국
+YOUTUBE_TRENDING_MAX_RESULTS = 50  # 최대 수집할 영상 수
+YOUTUBE_TRENDING_CATEGORIES = {
+    '10': 'music',
+    '20': 'gaming', 
+    '24': 'entertainment',
+    '17': 'sports',
+    '25': 'news',
+    '27': 'education',
+    '28': 'tech',
+    '23': 'comedy',
+    '26': 'lifestyle',
+}
+
+# Celery Beat 스케줄에 YouTube 트렌딩 수집 작업 추가
+if 'CELERY_BEAT_SCHEDULE' not in locals():
+    CELERY_BEAT_SCHEDULE = {}
+
+# 매일 오후 11시 55분에 YouTube 트렌딩 쇼츠 수집
+CELERY_BEAT_SCHEDULE['youtube_trending_collection'] = {
+    'task': 'youtube_trending.tasks.collect_trending_shorts_only',
+    'schedule': crontab(hour=23, minute=55),  # 매일 23:55
+    'options': {'queue': 'default'},
+}

@@ -10,6 +10,9 @@ from django.db import transaction
 from django.db.models import Q
 from django.template.loader import render_to_string
 from django.core.paginator import Paginator
+from django.utils import timezone
+from django.views.decorators.csrf import ensure_csrf_cookie
+from django.utils.decorators import method_decorator
 
 from .models import Workspace, WorkspaceMembership, Invitation
 from .forms import WorkspaceForm, InvitationForm, WorkspaceMembershipForm, WorkspaceJoinForm
@@ -28,6 +31,7 @@ class WorkspaceContextMixin:
             context['is_personal_mode'] = user.is_in_personal_mode()
         return context
 
+@method_decorator(ensure_csrf_cookie, name='dispatch')
 class SwitchWorkspaceView(LoginRequiredMixin, View):
     """워크스페이스 전환 뷰"""
     

@@ -217,6 +217,12 @@
                             <a class="nav-link" href="{% url 'downloads:download_form' %}">다운로드</a>
                         </li>
                         <li class="nav-item">
+                            <a class="nav-link" href="{% url 'youtube_trending:shorts_comparison' %}">
+                                <i class="fas fa-chart-line me-1"></i>
+                                쇼츠 트렌드
+                            </a>
+                        </li>
+                        <li class="nav-item">
                             <a class="nav-link" href="{% url 'core:about' %}">소개</a>
                         </li>
                     </ul>
@@ -349,6 +355,47 @@
     
     {% if user.is_authenticated %}
     <script>
+        // CSRF 토큰을 메타 태그로 설정 (페이지 로드 시)
+        document.addEventListener('DOMContentLoaded', function() {
+            // CSRF 토큰을 다양한 방법으로 찾기
+            let csrfToken = null;
+            
+            // 1. 폼의 CSRF 토큰에서 가져오기
+            const csrfInput = document.querySelector('[name=csrfmiddlewaretoken]');
+            if (csrfInput) {
+                csrfToken = csrfInput.value;
+            }
+            
+            // 2. 쿠키에서 가져오기 (Django의 기본 CSRF 쿠키명)
+            if (!csrfToken) {
+                const cookieValue = document.cookie
+                    .split('; ')
+                    .find(row => row.startsWith('csrftoken='));
+                if (cookieValue) {
+                    csrfToken = cookieValue.split('=')[1];
+                }
+            }
+            
+            // 3. 메타 태그에서 가져오기
+            if (!csrfToken) {
+                const metaTag = document.querySelector('meta[name="csrf-token"]');
+                if (metaTag) {
+                    csrfToken = metaTag.content;
+                }
+            }
+            
+            // CSRF 토큰을 메타 태그로 설정
+            if (csrfToken) {
+                let metaTag = document.querySelector('meta[name="csrf-token"]');
+                if (!metaTag) {
+                    metaTag = document.createElement('meta');
+                    metaTag.name = 'csrf-token';
+                    document.head.appendChild(metaTag);
+                }
+                metaTag.content = csrfToken;
+            }
+        });
+        
         // 워크스페이스 전환 함수
         function switchWorkspace(workspaceId, workspaceName) {
             // 로딩 상태 표시
@@ -356,9 +403,39 @@
             const originalText = dropdown.innerHTML;
             dropdown.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 전환 중...';
             
-            // CSRF 토큰 가져오기
-            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || 
-                             document.querySelector('meta[name="csrf-token"]')?.content;
+            // CSRF 토큰 가져오기 (개선된 방법)
+            let csrfToken = null;
+            
+            // 1. 메타 태그에서 가져오기
+            const metaTag = document.querySelector('meta[name="csrf-token"]');
+            if (metaTag) {
+                csrfToken = metaTag.content;
+            }
+            
+            // 2. 폼의 CSRF 토큰에서 가져오기
+            if (!csrfToken) {
+                const csrfInput = document.querySelector('[name=csrfmiddlewaretoken]');
+                if (csrfInput) {
+                    csrfToken = csrfInput.value;
+                }
+            }
+            
+            // 3. 쿠키에서 가져오기
+            if (!csrfToken) {
+                const cookieValue = document.cookie
+                    .split('; ')
+                    .find(row => row.startsWith('csrftoken='));
+                if (cookieValue) {
+                    csrfToken = cookieValue.split('=')[1];
+                }
+            }
+            
+            if (!csrfToken) {
+                console.error('CSRF 토큰을 찾을 수 없습니다.');
+                dropdown.innerHTML = originalText;
+                alert('보안 토큰을 찾을 수 없습니다. 페이지를 새로고침해주세요.');
+                return;
+            }
             
             // 전환 요청
             const formData = new FormData();
@@ -367,9 +444,7 @@
             } else {
                 formData.append('workspace_id', ''); // 개인 모드
             }
-            if (csrfToken) {
-                formData.append('csrfmiddlewaretoken', csrfToken);
-            }
+            formData.append('csrfmiddlewaretoken', csrfToken);
             
             fetch('{% url "workspace:switch_workspace" %}', {
                 method: 'POST',
@@ -378,7 +453,12 @@
                     'X-Requested-With': 'XMLHttpRequest'
                 }
             })
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
             .then(data => {
                 if (data.success) {
                     // 성공 시 대시보드로 리다이렉트
@@ -393,17 +473,8 @@
                 // 에러 시 원상복구
                 dropdown.innerHTML = originalText;
                 console.error('워크스페이스 전환 오류:', error);
-                alert('워크스페이스 전환 중 오류가 발생했습니다.');
+                alert('워크스페이스 전환 중 오류가 발생했습니다. (' + error.message + ')');
             });
-        }
-        
-        // CSRF 토큰을 meta 태그에서 가져올 수 있도록 설정
-        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
-        if (csrfToken) {
-            const metaTag = document.createElement('meta');
-            metaTag.name = 'csrf-token';
-            metaTag.content = csrfToken;
-            document.head.appendChild(metaTag);
         }
     </script>
     {% endif %}
